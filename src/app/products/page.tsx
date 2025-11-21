@@ -22,6 +22,7 @@ interface Product {
   inStock: boolean
   category: string
   featured: boolean
+  collectionId?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -241,7 +242,7 @@ export default function ProductsPage() {
             <button
               onClick={() => {
                 setSearchTerm('')
-                setSelectedCategory('all')
+                setSelectedCollection('all')
                 setSelectedColor('all')
                 setSortBy('featured')
               }}

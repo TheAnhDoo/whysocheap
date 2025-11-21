@@ -87,6 +87,7 @@ export default function ProductPage() {
   }
 
   const handleAddToCart = () => {
+    if (!product) return
     if (!selectedSize) {
       setToast({ open: true, message: 'Please select a size', type: 'info' })
       return
@@ -99,8 +100,8 @@ export default function ProductPage() {
     dispatch({
       type: 'ADD_ITEM',
       payload: {
-        productId: product!.id,
-        product: product!,
+        productId: product.id,
+        product: product,
         size: selectedSize,
         color: selectedColor || 'original',
         quantity
@@ -112,19 +113,20 @@ export default function ProductPage() {
   }
 
   const handleBuyNow = () => {
+    if (!product) return
     if (!selectedSize) {
       setToast({ open: true, message: 'Please select a size', type: 'info' })
       return
     }
-    if (product!.colors && product!.colors.length > 0 && !selectedColor) {
+    if (product.colors && product.colors.length > 0 && !selectedColor) {
       setToast({ open: true, message: 'Please select a color', type: 'info' })
       return
     }
     
     // Store product in session for buy now flow
     const buyNowData = {
-      productId: product!.id,
-      product: product!,
+      productId: product.id,
+      product: product,
       size: selectedSize,
       color: selectedColor || 'original',
       quantity,
