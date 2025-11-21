@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 
 // GET /api/products
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     
     // Get single product by ID
     if (id) {
-      const product = databaseService.getProduct(id)
+      const product = await databaseService.getProduct(id)
       if (!product) {
         return NextResponse.json(
           { error: 'Product not found' },
@@ -26,20 +26,22 @@ export async function GET(request: NextRequest) {
     // Get multiple products
     let products
     if (featured === 'true') {
-      products = databaseService.getFeaturedProducts()
+      products = await databaseService.getFeaturedProducts()
     } else if (collectionId) {
-      products = databaseService.getProducts().filter((p: any) => p.collectionId === collectionId)
+      const allProducts = await databaseService.getProducts()
+      products = allProducts.filter((p: any) => p.collectionId === collectionId)
     } else if (category) {
-      products = databaseService.getProducts().filter((p: any) => p.category === category)
+      const allProducts = await databaseService.getProducts()
+      products = allProducts.filter((p: any) => p.category === category)
     } else {
-      products = databaseService.getProducts()
+      products = await databaseService.getProducts()
     }
 
     if (includeCollection) {
-      const collections = databaseService.getCollections() as any[]
+      const collections = await databaseService.getCollections()
       products = products.map((p: any) => ({
         ...p,
-        collection: p.collectionId ? collections.find(c => c.id === p.collectionId) || null : null
+        collection: p.collectionId ? collections.find((c: any) => c.id === p.collectionId) || null : null
       }))
     }
 
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    const newProduct = databaseService.createProduct(body)
+    const newProduct = await databaseService.createProduct(body)
     
     return NextResponse.json({ product: newProduct }, { status: 201 })
   } catch (error) {
@@ -74,7 +76,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, ...updates } = body
     
-    const updatedProduct = databaseService.updateProduct(id, updates)
+    const updatedProduct = await databaseService.updateProduct(id, updates)
     
     if (!updatedProduct) {
       return NextResponse.json(
@@ -105,7 +107,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
     
-    const deleted = databaseService.deleteProduct(id)
+    const deleted = await databaseService.deleteProduct(id)
     
     if (!deleted) {
       return NextResponse.json(

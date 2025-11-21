@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 
 export async function POST(request: NextRequest) {
   try {
-    const result = databaseService.clearCompletedOrderLogs()
+    const result = await databaseService.clearCompletedOrderLogs()
     
-    if (result?.success) {
+    if (result) {
       return NextResponse.json({ success: true, message: 'All completed order logs have been cleared' })
     } else {
       return NextResponse.json({ success: false, message: 'Failed to clear completed order logs' }, { status: 500 })

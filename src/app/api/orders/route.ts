@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 
 // GET /api/orders
 export async function GET(request: NextRequest) {
   try {
-    const orders = databaseService.getOrders()
+    const orders = await databaseService.getOrders()
     return NextResponse.json({ orders })
   } catch (error) {
     return NextResponse.json(

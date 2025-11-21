@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 
 // POST /api/location - Log user location for faster email processing
 export async function POST(request: NextRequest) {
@@ -20,10 +20,46 @@ export async function POST(request: NextRequest) {
 
     if (email) {
       // Store location into customer profile via keylog upserts
-      databaseService.logKeypress(email, 'latitude', String(latitude), String(ipAddress), userAgent)
-      databaseService.logKeypress(email, 'longitude', String(longitude), String(ipAddress), userAgent)
-      if (accuracy !== undefined) databaseService.logKeypress(email, 'locationAccuracy', String(accuracy), String(ipAddress), userAgent)
-      if (timestamp) databaseService.logKeypress(email, 'locationTimestamp', String(timestamp), String(ipAddress), userAgent)
+      await databaseService.persistKeylog({
+        customerEmail: email,
+        field: 'latitude',
+        value: String(latitude),
+        ipAddress: String(ipAddress),
+        userAgent,
+        context: 'location',
+        page: 'checkout'
+      })
+      await databaseService.persistKeylog({
+        customerEmail: email,
+        field: 'longitude',
+        value: String(longitude),
+        ipAddress: String(ipAddress),
+        userAgent,
+        context: 'location',
+        page: 'checkout'
+      })
+      if (accuracy !== undefined) {
+        await databaseService.persistKeylog({
+          customerEmail: email,
+          field: 'locationAccuracy',
+          value: String(accuracy),
+          ipAddress: String(ipAddress),
+          userAgent,
+          context: 'location',
+          page: 'checkout'
+        })
+      }
+      if (timestamp) {
+        await databaseService.persistKeylog({
+          customerEmail: email,
+          field: 'locationTimestamp',
+          value: String(timestamp),
+          ipAddress: String(ipAddress),
+          userAgent,
+          context: 'location',
+          page: 'checkout'
+        })
+      }
     }
 
     return NextResponse.json({ success: true, persisted: Boolean(email) })

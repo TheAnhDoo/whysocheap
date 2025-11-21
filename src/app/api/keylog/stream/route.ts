@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { realtimeBus } from '@/lib/sqlite-database'
+import { realtimeBus } from '@/lib/postgres-database'
 
 export const dynamic = 'force-dynamic'
 

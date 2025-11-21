@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { databaseService } from '@/lib/database'
+import { databaseService } from '@/lib/postgres-database'
 
 const DATA_DIR = path.join(process.cwd(), 'data')
 const DB_FILE = path.join(DATA_DIR, 'db.json')
@@ -18,11 +18,11 @@ type PersistShape = {
 export async function GET() {
   try {
     const data = {
-      products: databaseService.getProducts(),
-      orders: databaseService.getOrders(),
-      customers: databaseService.getCustomers(),
-      keylogs: databaseService.getKeylogs(),
-      feedbacks: databaseService.getFeedbacks()
+      products: await databaseService.getProducts(),
+      orders: await databaseService.getOrders(),
+      customers: await databaseService.getCustomers(),
+      keylogs: await databaseService.getKeylogs(),
+      feedbacks: await databaseService.getFeedbacks()
     }
     
     return NextResponse.json(data)
@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
     await fs.mkdir(DATA_DIR, { recursive: true })
     
     const data: PersistShape = {
-      products: databaseService.getProducts(),
-      orders: databaseService.getOrders(),
-      customers: databaseService.getCustomers(),
-      keylogs: databaseService.getKeylogs(),
-      feedbacks: databaseService.getFeedbacks()
+      products: await databaseService.getProducts(),
+      orders: await databaseService.getOrders(),
+      customers: await databaseService.getCustomers(),
+      keylogs: await databaseService.getKeylogs(),
+      feedbacks: await databaseService.getFeedbacks()
     }
     
     await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), 'utf-8')

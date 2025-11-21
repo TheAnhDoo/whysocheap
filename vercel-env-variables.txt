@@ -1,0 +1,16 @@
+# Copy these environment variables to Vercel
+# Go to: Settings → Environment Variables → Add New
+
+# Database (REQUIRED - Updated for Postgres)
+DATABASE_URL=postgresql://neondb_owner:npg_XC19msLBZyoI@ep-nameless-river-adr5zvqn-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=8244371371:AAEk4Gl04opMoioArmy9zjrjYbfxGT8Ze98
+TELEGRAM_CHAT_ID=-1003203445265,1330471406
+TELEGRAM_AUTHORIZED_CHAT_IDS=1330471406,-1003203445265,-1003215159480,8203909082,
+
+# Next.js (Update NEXTAUTH_URL after deployment)
+NEXTAUTH_URL=https://your-project-name.vercel.app
+NEXTAUTH_SECRET=changeme
+NODE_ENV=production
+

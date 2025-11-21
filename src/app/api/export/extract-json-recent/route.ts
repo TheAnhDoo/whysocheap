@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 import ExcelJS from 'exceljs'
 
 export async function GET(request: Request) {
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     }
     
     // Get all completed order logs
-    const allRows = databaseService.getCompletedOrderLogsAll() as any[]
+    const allRows = await databaseService.getCompletedOrderLogsAll()
     
     // Filter for recent records (within specified time period)
     const rows = allRows.filter(row => {

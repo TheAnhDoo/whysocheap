@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 import ExcelJS from 'exceljs'
 
 export async function GET(request: Request) {
@@ -9,8 +9,8 @@ export async function GET(request: Request) {
 
     // Get completed order logs
     const rows = email 
-      ? (databaseService.getCompletedOrderLogsForEmail(email) as any[]) 
-      : (databaseService.getCompletedOrderLogsAll() as any[])
+      ? (await databaseService.getCompletedOrderLogsForEmail(email)) 
+      : (await databaseService.getCompletedOrderLogsAll())
 
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('Extracted Data')

