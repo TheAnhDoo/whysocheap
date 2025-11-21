@@ -348,7 +348,7 @@ export default function AdminPage() {
       </Modal>
 
       <Modal open={showProductModal} title={editingProduct ? 'Edit Product' : 'Add Product'} onClose={() => { setShowProductModal(false); setEditingProduct(null) }}
-        primaryAction={{ label: editingProduct ? 'Update' : 'Save', onClick: addProduct }}
+        primaryAction={{ label: editingProduct ? 'Update' : 'Save', onClick: () => addProduct({ preventDefault: () => {} } as React.FormEvent) }}
         secondaryAction={{ label: 'Cancel', onClick: () => { setShowProductModal(false); setEditingProduct(null) } }}
       >
         <form onSubmit={addProduct} className="space-y-3">
