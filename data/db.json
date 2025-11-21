@@ -1,0 +1,152 @@
+{
+  "products": [
+    {
+      "id": "1",
+      "name": "BTS Dynamite T-Shirt",
+      "description": "Premium quality cotton T-shirt featuring your favorite K-pop idols. Perfect for concerts, fan meetings, or casual wear. Made with 100% organic cotton for ultimate comfort.",
+      "price": 29.99,
+      "images": [
+        "/images/bts-dynamite-front.jpg",
+        "/images/bts-dynamite-back.jpg"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "colors": [
+        "white",
+        "black",
+        "gray"
+      ],
+      "material": "100% Organic Cotton",
+      "washingGuide": "Machine wash cold, tumble dry low. Do not bleach. Iron on reverse side.",
+      "printType": "High-quality screen print",
+      "inStock": true,
+      "category": "K-pop",
+      "featured": true,
+      "createdAt": "2025-10-29T19:57:50.714Z",
+      "updatedAt": "2025-10-29T19:57:50.714Z"
+    },
+    {
+      "id": "2",
+      "name": "Blackpink Born Pink T-Shirt",
+      "description": "Show your love for Blackpink with this premium T-shirt featuring the Born Pink design. Soft, comfortable, and perfect for any occasion.",
+      "price": 32.99,
+      "images": [
+        "/images/bp-born-pink.jpg"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "colors": [
+        "white",
+        "black",
+        "pink"
+      ],
+      "material": "100% Organic Cotton",
+      "washingGuide": "Machine wash cold, tumble dry low.",
+      "printType": "High-quality screen print",
+      "inStock": true,
+      "category": "K-pop",
+      "featured": true,
+      "createdAt": "2025-10-29T19:57:50.714Z",
+      "updatedAt": "2025-10-29T19:57:50.714Z"
+    },
+    {
+      "id": "3",
+      "name": "NewJeans Get Up T-Shirt",
+      "description": "Fresh and trendy NewJeans design perfect for the modern K-pop fan. Comfortable fit and vibrant colors.",
+      "price": 28.99,
+      "images": [
+        "/images/nj-get-up.jpg"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "colors": [
+        "white",
+        "blue",
+        "green"
+      ],
+      "material": "100% Organic Cotton",
+      "washingGuide": "Machine wash cold, tumble dry low.",
+      "printType": "High-quality screen print",
+      "inStock": true,
+      "category": "K-pop",
+      "featured": false,
+      "createdAt": "2025-10-29T19:57:50.714Z",
+      "updatedAt": "2025-10-29T19:57:50.714Z"
+    },
+    {
+      "id": "4",
+      "name": "LE SSERAFIM Unforgiven T-Shirt",
+      "description": "Bold and powerful design featuring LE SSERAFIM. Perfect for fans who love their fierce style.",
+      "price": 31.99,
+      "images": [
+        "/images/lsf-unforgiven.jpg"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "colors": [
+        "white",
+        "black",
+        "red"
+      ],
+      "material": "100% Organic Cotton",
+      "washingGuide": "Machine wash cold, tumble dry low.",
+      "printType": "High-quality screen print",
+      "inStock": true,
+      "category": "K-pop",
+      "featured": false,
+      "createdAt": "2025-10-29T19:57:50.714Z",
+      "updatedAt": "2025-10-29T19:57:50.714Z"
+    }
+  ],
+  "orders": [],
+  "customers": [],
+  "keylogs": [],
+  "feedbacks": [
+    {
+      "id": "1",
+      "customerName": "Sarah Kim",
+      "customerEmail": "sarah.kim@email.com",
+      "rating": 5,
+      "comment": "Amazing quality! The BTS shirt is so soft and the print is perfect. Shipping was super fast too!",
+      "productId": "1",
+      "verified": true,
+      "createdAt": "2024-01-10T00:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "customerName": "Mike Johnson",
+      "customerEmail": "mike.j@email.com",
+      "rating": 5,
+      "comment": "Love the Blackpink design! Perfect fit and great material. Will definitely order again.",
+      "productId": "2",
+      "verified": true,
+      "createdAt": "2024-01-12T00:00:00.000Z"
+    },
+    {
+      "id": "3",
+      "customerName": "Emma Chen",
+      "customerEmail": "emma.chen@email.com",
+      "rating": 4,
+      "comment": "Great shirt! The NewJeans design is so cute. Only wish it came in more colors.",
+      "productId": "3",
+      "verified": true,
+      "createdAt": "2024-01-15T00:00:00.000Z"
+    }
+  ]
+}

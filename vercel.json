@@ -1,0 +1,65 @@
+# Vercel Deployment Configuration
+
+This file configures Vercel deployment settings for the WhySoCheap e-commerce website.
+
+## Build Settings
+
+- **Framework Preset**: Next.js
+- **Build Command**: `npm run build`
+- **Output Directory**: `.next`
+- **Install Command**: `npm install`
+
+## Environment Variables
+
+Add these environment variables in your Vercel dashboard:
+
+```env
+# Optional: Database connection
+DATABASE_URL=your_database_url
+
+# Optional: Payment gateway
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+
+# Optional: Email service
+EMAIL_SERVICE_API_KEY=your_email_service_key
+```
+
+## Deployment Steps
+
+1. **Connect Repository**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "New Project"
+   - Import your GitHub repository
+
+2. **Configure Settings**
+   - Framework: Next.js
+   - Root Directory: `idol-tshirt-store`
+   - Build Command: `npm run build`
+   - Output Directory: `.next`
+
+3. **Deploy**
+   - Click "Deploy"
+   - Wait for deployment to complete
+   - Your site will be available at `https://your-project.vercel.app`
+
+## Custom Domain
+
+1. Go to Project Settings → Domains
+2. Add your custom domain
+3. Update DNS records as instructed
+4. SSL certificate will be automatically provisioned
+
+## Performance Optimization
+
+- **Edge Functions**: API routes run on Vercel Edge Network
+- **CDN**: Static assets served from global CDN
+- **Image Optimization**: Automatic image optimization
+- **Caching**: Automatic caching for better performance
+
+## Monitoring
+
+- **Analytics**: Built-in Vercel Analytics
+- **Logs**: Real-time function logs
+- **Performance**: Core Web Vitals monitoring
+- **Errors**: Automatic error tracking
