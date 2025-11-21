@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     } else if (collectionId) {
       products = databaseService.getProducts().filter((p: any) => p.collectionId === collectionId)
     } else if (category) {
-      products = databaseService.getProducts().filter(p => p.category === category)
+      products = databaseService.getProducts().filter((p: any) => p.category === category)
     } else {
       products = databaseService.getProducts()
     }
