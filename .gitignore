@@ -31,7 +31,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+# WARNING: .env.local is now tracked - contains actual secrets!
+.env*.local
+.env
+.env.development
+.env.production
+!.env.example
+!.env.local
 
 # vercel
 .vercel
