@@ -156,7 +156,7 @@ class TelegramService {
     const billingText = data.useSameBillingAddress !== false && (!data.billingAddress || (data.billingAddress.firstName === firstName && data.billingAddress.lastName === lastName)) 
       ? 'tương tự địa chỉ nhận hàng' 
       : 'không cùng'
-
+    
     return `
 🛍 <b>${t.newData}</b> 🛍
 

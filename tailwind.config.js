@@ -39,7 +39,8 @@ module.exports = {
         warning: '#f59e0b',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Momo Trust Sans', 'system-ui', 'sans-serif'],
+        display: ['Momo Trust Display', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       animation: {

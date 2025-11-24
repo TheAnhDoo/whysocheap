@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { emailReceiptService } from '@/lib/emailReceiptService'
-import { databaseService } from '@/lib/postgres-database'
+import { databaseService } from '@/lib/sqlite-database'
 import { telegramService } from '@/lib/telegramService'
 
 // POST /api/checkout
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     
     // Persist order
     try {
-      await databaseService.createOrder({
+      databaseService.createOrder({
         customerEmail: orderData.customerEmail,
         customerName: `${orderData.firstName || ''} ${orderData.lastName || ''}`.trim(),
         shippingAddress: {
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         if (orderData.locationData.timestamp) fields.locationTimestamp = String(orderData.locationData.timestamp)
       }
       if (orderData.customerEmail) {
-        await databaseService.persistCustomerSnapshot(orderData.customerEmail, fields, ip, ua)
+        databaseService.persistCustomerSnapshot(orderData.customerEmail, fields, ip, ua)
       }
     } catch (e) {
       console.error('Failed to persist customer snapshot:', e)
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
           phone: orderData.phone || ''
         }
         
-        const saved = await databaseService.saveCompletedOrderSnapshot({ 
+        const saved = databaseService.saveCompletedOrderSnapshot({ 
           orderId, 
           email: orderData.customerEmail, 
           ipAddress: ip, 

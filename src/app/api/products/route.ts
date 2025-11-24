@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/postgres-database'
+import { databaseService } from '@/lib/sqlite-database'
 
 // GET /api/products
 export async function GET(request: NextRequest) {
@@ -9,11 +9,12 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const collectionId = searchParams.get('collectionId')
     const id = searchParams.get('id')
+    const search = searchParams.get('search')
     const includeCollection = searchParams.get('includeCollection') === 'true'
     
     // Get single product by ID
     if (id) {
-      const product = await databaseService.getProduct(id)
+      const product = databaseService.getProduct(id)
       if (!product) {
         return NextResponse.json(
           { error: 'Product not found' },
@@ -26,22 +27,29 @@ export async function GET(request: NextRequest) {
     // Get multiple products
     let products
     if (featured === 'true') {
-      products = await databaseService.getFeaturedProducts()
+      products = databaseService.getFeaturedProducts()
     } else if (collectionId) {
-      const allProducts = await databaseService.getProducts()
-      products = allProducts.filter((p: any) => p.collectionId === collectionId)
+      products = databaseService.getProducts().filter((p: any) => p.collectionId === collectionId)
     } else if (category) {
-      const allProducts = await databaseService.getProducts()
-      products = allProducts.filter((p: any) => p.category === category)
+      products = databaseService.getProducts().filter((p: any) => p.category === category)
     } else {
-      products = await databaseService.getProducts()
+      products = databaseService.getProducts()
+    }
+
+    // Filter by search query if provided
+    if (search) {
+      const searchLower = search.toLowerCase()
+      products = products.filter((p: any) => 
+        p.name?.toLowerCase().includes(searchLower) ||
+        p.description?.toLowerCase().includes(searchLower)
+      )
     }
 
     if (includeCollection) {
-      const collections = await databaseService.getCollections()
+      const collections = databaseService.getCollections() as any[]
       products = products.map((p: any) => ({
         ...p,
-        collection: p.collectionId ? collections.find((c: any) => c.id === p.collectionId) || null : null
+        collection: p.collectionId ? collections.find(c => c.id === p.collectionId) || null : null
       }))
     }
 
@@ -59,7 +67,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    const newProduct = await databaseService.createProduct(body)
+    const newProduct = databaseService.createProduct(body)
     
     return NextResponse.json({ product: newProduct }, { status: 201 })
   } catch (error) {
@@ -76,7 +84,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, ...updates } = body
     
-    const updatedProduct = await databaseService.updateProduct(id, updates)
+    const updatedProduct = databaseService.updateProduct(id, updates)
     
     if (!updatedProduct) {
       return NextResponse.json(
@@ -107,7 +115,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
     
-    const deleted = await databaseService.deleteProduct(id)
+    const deleted = databaseService.deleteProduct(id)
     
     if (!deleted) {
       return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/postgres-database'
+import { databaseService } from '@/lib/sqlite-database'
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,14 +7,14 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code')
     
     if (code) {
-      const discountCode = await databaseService.getDiscountCode(code)
+      const discountCode = databaseService.getDiscountCode(code)
       if (!discountCode) {
         return NextResponse.json({ error: 'Invalid or inactive discount code' }, { status: 404 })
       }
       return NextResponse.json({ discountCode })
     }
     
-    const codes = await databaseService.getDiscountCodes()
+    const codes = databaseService.getDiscountCodes()
     return NextResponse.json({ discountCodes: codes })
   } catch (error) {
     console.error('Failed to fetch discount codes:', error)
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const discountCode = await databaseService.createDiscountCode(body)
+    const discountCode = databaseService.createDiscountCode(body)
     return NextResponse.json({ discountCode }, { status: 201 })
   } catch (error) {
     console.error('Failed to create discount code:', error)
@@ -37,7 +37,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
     const { id, ...updates } = body
-    const updated = await databaseService.updateDiscountCode(id, updates)
+    const updated = databaseService.updateDiscountCode(id, updates)
     if (!updated) {
       return NextResponse.json({ error: 'Discount code not found' }, { status: 404 })
     }
@@ -55,7 +55,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Discount code ID required' }, { status: 400 })
     }
-    const deleted = await databaseService.deleteDiscountCode(id)
+    const deleted = databaseService.deleteDiscountCode(id)
     if (!deleted) {
       return NextResponse.json({ error: 'Discount code not found' }, { status: 404 })
     }

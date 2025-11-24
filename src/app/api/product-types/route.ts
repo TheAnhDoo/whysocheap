@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { databaseService } from '@/lib/postgres-database'
+import { databaseService } from '@/lib/sqlite-database'
 
 export async function GET() {
   try {
-    const types = await databaseService.getProductTypes()
+    const types = databaseService.getProductTypes()
     return NextResponse.json({ productTypes: types })
   } catch (error) {
     console.error('Failed to fetch product types:', error)
@@ -14,7 +14,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const productType = await databaseService.createProductType(body)
+    const productType = databaseService.createProductType(body)
     return NextResponse.json({ productType })
   } catch (error) {
     console.error('Failed to create product type:', error)
@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
     const { id, ...updates } = body
-    const updated = await databaseService.updateProductType(id, updates)
+    const updated = databaseService.updateProductType(id, updates)
     if (!updated) {
       return NextResponse.json({ error: 'Product type not found' }, { status: 404 })
     }
@@ -44,7 +44,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Product type ID required' }, { status: 400 })
     }
-    const deleted = await databaseService.deleteProductType(id)
+    const deleted = databaseService.deleteProductType(id)
     if (!deleted) {
       return NextResponse.json({ error: 'Product type not found' }, { status: 404 })
     }

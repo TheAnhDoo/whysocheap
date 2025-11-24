@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
-import { databaseService } from '@/lib/postgres-database'
+import { databaseService } from '@/lib/sqlite-database'
 import ExcelJS from 'exceljs'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
@@ -9,8 +11,8 @@ export async function GET(request: Request) {
 
     // Get completed order logs
     const rows = email 
-      ? (await databaseService.getCompletedOrderLogsForEmail(email)) 
-      : (await databaseService.getCompletedOrderLogsAll())
+      ? (databaseService.getCompletedOrderLogsForEmail(email) as any[]) 
+      : (databaseService.getCompletedOrderLogsAll() as any[])
 
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('Extracted Data')

@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [toast, setToast] = useState<{ open: boolean; message: string; type?: 'success' | 'error' | 'info' }>({ open: false, message: '' })
 
   const [newCollection, setNewCollection] = useState<Partial<Collection>>({ name: '', slug: '' })
+  const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
 
   const [newProduct, setNewProduct] = useState<any>({ name: '', description: '', price: 0, collectionId: '', productTypeId: '', category: '', images: '', sizes: '', colors: '', featured: false })
@@ -51,6 +52,35 @@ export default function AdminPage() {
     setToast({ open: true, message: 'Collection created', type: 'success' })
     setShowCollectionModal(false)
     setNewCollection({ name: '', slug: '' })
+    load()
+  }
+
+  const updateCollection = async () => {
+    if (!editingCollection || !newCollection.name || !newCollection.slug) return
+    const res = await fetch('/api/collections', { 
+      method: 'PUT', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ id: editingCollection.id, ...newCollection }) 
+    })
+    if (!res.ok) return setToast({ open: true, message: 'Failed to update collection', type: 'error' })
+    setToast({ open: true, message: 'Collection updated', type: 'success' })
+    setShowCollectionModal(false)
+    setEditingCollection(null)
+    setNewCollection({ name: '', slug: '' })
+    load()
+  }
+
+  const editCollection = (collection: Collection) => {
+    setEditingCollection(collection)
+    setNewCollection({ name: collection.name, slug: collection.slug, image: collection.image, description: collection.description, featured: collection.featured })
+    setShowCollectionModal(true)
+  }
+
+  const deleteCollection = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this collection? Products in this collection will lose their collection association.')) return
+    const res = await fetch(`/api/collections?id=${id}`, { method: 'DELETE' })
+    if (!res.ok) return setToast({ open: true, message: 'Failed to delete collection', type: 'error' })
+    setToast({ open: true, message: 'Collection deleted', type: 'success' })
     load()
   }
 
@@ -188,9 +218,13 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {collections.map(col => (
               <div key={col.id} className="card-elevated p-4">
-                <div className="font-semibold">{col.name}</div>
-                <div className="text-sm text-primary-600">{col.count || 0} products</div>
-                <div className="text-xs text-primary-500">/{col.slug}</div>
+                <div className="font-semibold mb-2">{col.name}</div>
+                <div className="text-sm text-primary-600 mb-1">{col.count || 0} products</div>
+                <div className="text-xs text-primary-500 mb-3">/{col.slug}</div>
+                <div className="flex gap-2">
+                  <button className="text-xs px-2 py-1 border rounded hover:bg-gray-50 transition-colors" onClick={() => editCollection(col)}>Edit</button>
+                  <button className="text-xs px-2 py-1 border border-red-600 text-red-600 rounded hover:bg-red-50 transition-colors" onClick={() => deleteCollection(col.id)}>Delete</button>
+                </div>
               </div>
             ))}
           </div>
@@ -334,13 +368,16 @@ export default function AdminPage() {
         </section>
       )}
 
-      <Modal open={showCollectionModal} title="Create Collection" onClose={() => setShowCollectionModal(false)}
-        primaryAction={{ label: 'Create', onClick: addCollection }}
-        secondaryAction={{ label: 'Cancel', onClick: () => setShowCollectionModal(false) }}
+      <Modal open={showCollectionModal} title={editingCollection ? 'Edit Collection' : 'Create Collection'} onClose={() => { setShowCollectionModal(false); setEditingCollection(null); setNewCollection({ name: '', slug: '' }) }}
+        primaryAction={{ label: editingCollection ? 'Update' : 'Create', onClick: editingCollection ? updateCollection : addCollection }}
+        secondaryAction={{ label: 'Cancel', onClick: () => { setShowCollectionModal(false); setEditingCollection(null); setNewCollection({ name: '', slug: '' }) } }}
       >
         <div className="space-y-3">
           <input className="input-field" placeholder="Name" value={newCollection.name || ''} onChange={e => setNewCollection({ ...newCollection, name: e.target.value })} />
-          <input className="input-field" placeholder="Slug" value={newCollection.slug || ''} onChange={e => setNewCollection({ ...newCollection, slug: e.target.value })} />
+          <input className="input-field" placeholder="Slug" value={newCollection.slug || ''} onChange={e => {
+            const slug = e.target.value.replace(/\s+/g, '-').toLowerCase()
+            setNewCollection({ ...newCollection, slug })
+          }} />
           <input className="input-field" placeholder="Image URL (optional)" value={newCollection.image || ''} onChange={e => setNewCollection({ ...newCollection, image: e.target.value })} />
           <textarea className="input-field" placeholder="Description (optional)" value={newCollection.description || ''} onChange={e => setNewCollection({ ...newCollection, description: e.target.value })} />
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!newCollection.featured} onChange={e => setNewCollection({ ...newCollection, featured: e.target.checked })} /> Featured</label>
@@ -348,7 +385,7 @@ export default function AdminPage() {
       </Modal>
 
       <Modal open={showProductModal} title={editingProduct ? 'Edit Product' : 'Add Product'} onClose={() => { setShowProductModal(false); setEditingProduct(null) }}
-        primaryAction={{ label: editingProduct ? 'Update' : 'Save', onClick: () => addProduct({ preventDefault: () => {} } as React.FormEvent) }}
+        primaryAction={{ label: editingProduct ? 'Update' : 'Save', onClick: () => { const fakeEvent = { preventDefault: () => {} } as React.FormEvent; addProduct(fakeEvent) } }}
         secondaryAction={{ label: 'Cancel', onClick: () => { setShowProductModal(false); setEditingProduct(null) } }}
       >
         <form onSubmit={addProduct} className="space-y-3">

@@ -4,13 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:network": "node server.js",
+    "dev:network": "next dev -H 0.0.0.0",
+    "dev:server": "node server.js",
     "build": "next build",
     "start": "next start",
-    "start:network": "NODE_ENV=production node server.js",
+    "start:network": "next start -H 0.0.0.0",
+    "start:server": "NODE_ENV=production node server.js",
     "lint": "next lint"
   },
   "dependencies": {
+    "@fontsource/momo-trust-display": "^5.2.1",
+    "@fontsource/momo-trust-sans": "^5.2.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/pg": "^8.15.6",
     "better-sqlite3": "^12.4.1",

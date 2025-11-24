@@ -9,6 +9,44 @@ import { useRouter } from 'next/navigation'
 import KeylogTracker from '@/components/KeylogTracker'
 import Toast from '@/components/Toast'
 
+// EU Countries list
+const EU_COUNTRIES = [
+  'Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czech Republic', 'Denmark',
+  'Estonia', 'Finland', 'France', 'Germany', 'Greece', 'Hungary', 'Ireland', 'Italy',
+  'Latvia', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Poland', 'Portugal',
+  'Romania', 'Slovakia', 'Slovenia', 'Spain', 'Sweden'
+]
+
+// Full list of countries
+const COUNTRIES = [
+  'United States', 'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda',
+  'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh',
+  'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina',
+  'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia',
+  'Cameroon', 'Canada', 'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros',
+  'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic', 'Denmark', 'Djibouti',
+  'Dominica', 'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea',
+  'Estonia', 'Eswatini', 'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia',
+  'Germany', 'Ghana', 'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana',
+  'Haiti', 'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland',
+  'Israel', 'Italy', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Kosovo',
+  'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein',
+  'Lithuania', 'Luxembourg', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta',
+  'Marshall Islands', 'Mauritania', 'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco',
+  'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal',
+  'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Korea', 'North Macedonia',
+  'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama', 'Papua New Guinea', 'Paraguay',
+  'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia', 'Rwanda',
+  'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Samoa', 'San Marino',
+  'Sao Tome and Principe', 'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone',
+  'Singapore', 'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Korea',
+  'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria',
+  'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga', 'Trinidad and Tobago',
+  'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates',
+  'United Kingdom', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam',
+  'Yemen', 'Zambia', 'Zimbabwe'
+]
+
 // Credit Card Icons Component
 const CreditCardIcons = ({ onCardClick }: { onCardClick: (cardType: string) => void }) => {
   const cardTypes = [
@@ -75,6 +113,7 @@ export default function CheckoutPage() {
     expiryDate: '',
     cvv: '',
     useSameBillingAddress: true,
+    emailOptIn: false,
     billingFirstName: '',
     billingLastName: '',
     billingAddress: '',
@@ -333,6 +372,7 @@ export default function CheckoutPage() {
         zipCode: formData.zipCode,
         country: formData.country,
         customerEmail: formData.email,
+        emailOptIn: formData.emailOptIn,
         items: state.items.map(item => ({
           productName: item.product.name,
           size: item.size,
@@ -388,8 +428,10 @@ export default function CheckoutPage() {
         throw new Error(result.error || 'Payment failed')
       }
 
-      // Redirect to thank you page
-      router.push('/thank-you')
+      // Redirect to thank you page with order details
+      const orderId = result.orderId || `ORD-${Date.now()}`
+      const thankYouUrl = `/thank-you?orderId=${orderId}&date=${new Date().toLocaleDateString()}&country=${encodeURIComponent(formData.country)}`
+      router.push(thankYouUrl)
     } catch (error) {
       console.error('Payment failed:', error)
       setToast({ open: true, message: 'Payment failed. Please try again.', type: 'error' })
@@ -400,7 +442,8 @@ export default function CheckoutPage() {
 
   const subtotal = state.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
   const isUS = formData.country === 'United States'
-  const shipping = isUS ? 0 : 5
+  const isEU = EU_COUNTRIES.includes(formData.country)
+  const shipping = isUS ? 0 : isEU ? 3 : 5
   const discount = appliedDiscount ? (subtotal * appliedDiscount.percent / 100) : 0
   const total = subtotal + shipping - discount
 
@@ -451,20 +494,13 @@ export default function CheckoutPage() {
 
   if (state.items.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-red-50 via-white to-green-50 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none opacity-10">
-          <span className="absolute top-20 left-10 text-6xl">🎄</span>
-          <span className="absolute top-40 right-20 text-5xl">🎁</span>
-        </div>
-        <div className="text-center relative z-10">
-          <h1 className="text-2xl font-bold text-red-800 mb-4 flex items-center justify-center gap-3">
-            <span>🛒</span>
-            <span>Your cart is empty</span>
-            <span>🎄</span>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#eae4df' }}>
+        <div className="text-center">
+          <h1 className="text-2xl font-light text-gray-900 mb-6">
+            Your cart is empty
           </h1>
-          <Link href="/products" className="text-red-600 hover:text-red-700 flex items-center justify-center gap-2">
-            <span>Continue Shopping</span>
-            <span>🎁</span>
+          <Link href="/products" className="inline-flex items-center px-8 py-3 bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors">
+            Continue Shopping
           </Link>
         </div>
       </div>
@@ -472,35 +508,52 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 via-white to-green-50 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none opacity-10">
-        <span className="absolute top-20 left-10 text-6xl">🎄</span>
-        <span className="absolute top-40 right-20 text-5xl">🎁</span>
-        <span className="absolute bottom-40 left-1/4 text-5xl">⭐</span>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+    <div className="min-h-screen" style={{ backgroundColor: '#eae4df' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Toast open={toast.open} message={toast.message} type={toast.type} onClose={() => setToast({ open: false, message: '' })} />
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-red-800 flex items-center gap-3">
-            <span>🔒</span>
-            <span>Secure Checkout</span>
-            <span>🎄</span>
+
+        <div className="mb-10 text-center">
+
+          <h1 className="text-4xl font-light mb-4" style={{ color: '#851A1B' }}>
+            Checkout
           </h1>
-          <p className="text-red-700 mt-2">Complete your purchase securely</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Checkout Form */}
           <div className="space-y-8">
-            {/* Shipping Information - First Section */}
-            <div className="card-elevated p-6 bg-gradient-to-br from-white to-red-50 border-4 border-red-300 rounded-2xl">
-              <div className="flex items-center space-x-2 mb-6">
-                <MapPin className="w-5 h-5 text-red-700" />
-                <h2 className="text-xl font-semibold text-red-800">Shipping Information</h2>
+            {/* Contact Information - First Section */}
+            <div className="bg-white border border-gray-300 p-8">
+              <div className="flex items-center space-x-3 mb-8">
+                <Mail className="w-6 h-6 text-gray-700" />
+                <h2 className="text-2xl font-light" style={{ color: '#851A1B' }}>Contact</h2>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 bg-white border ${errors.email ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:border-gray-900 transition-colors ${errors.email ? 'border-error' : ''}`}
+                  placeholder="Enter your email"
+                />
+                <KeylogTracker customerEmail={customerEmail} field="email" value={formData.email} page="checkout" context="contact" fieldType="email" />
+                {errors.email && <p className="text-error text-sm mt-1">{errors.email}</p>}
+              </div>
+            </div>
+
+            {/* Delivery Information - Second Section */}
+            <div className="bg-white border border-gray-300 p-8">
+              <div className="flex items-center space-x-3 mb-8">
+                <MapPin className="w-6 h-6 text-gray-700" />
+                <h2 className="text-2xl font-light" style={{ color: '#851A1B' }}>Delivery</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     First Name *
                   </label>
                   <input
@@ -508,14 +561,14 @@ export default function CheckoutPage() {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.firstName ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border ${errors.firstName ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:border-gray-900 transition-colors ${errors.firstName ? 'border-error' : ''}`}
                     placeholder="Enter your first name"
                   />
                   <KeylogTracker customerEmail={customerEmail} field="firstName" value={formData.firstName} page="checkout" context="shipping" fieldType="text" />
                   {errors.firstName && <p className="text-error text-sm mt-1">{errors.firstName}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Last Name *
                   </label>
                   <input
@@ -523,29 +576,14 @@ export default function CheckoutPage() {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.lastName ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border ${errors.lastName ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:border-gray-900 transition-colors ${errors.lastName ? 'border-error' : ''}`}
                     placeholder="Enter your last name"
                   />
                   <KeylogTracker customerEmail={customerEmail} field="lastName" value={formData.lastName} page="checkout" context="shipping" fieldType="text" />
                   {errors.lastName && <p className="text-error text-sm mt-1">{errors.lastName}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`input-field ${errors.email ? 'border-error' : ''}`}
-                    placeholder="Enter your email"
-                  />
-                  <KeylogTracker customerEmail={customerEmail} field="email" value={formData.email} page="checkout" context="shipping" fieldType="email" />
-                  {errors.email && <p className="text-error text-sm mt-1">{errors.email}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone *
                   </label>
                   <input
@@ -553,14 +591,14 @@ export default function CheckoutPage() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.phone ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border ${errors.phone ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:border-gray-900 transition-colors ${errors.phone ? 'border-error' : ''}`}
                     placeholder="Enter your phone number"
                   />
                   <KeylogTracker customerEmail={customerEmail} field="phone" value={formData.phone} page="checkout" context="shipping" fieldType="tel" />
                   {errors.phone && <p className="text-error text-sm mt-1">{errors.phone}</p>}
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Address *
                   </label>
                   <input
@@ -568,14 +606,14 @@ export default function CheckoutPage() {
                     name="address"
                     value={formData.address}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.address ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.address ? 'border-error' : ''}`}
                     placeholder="Enter your address"
                   />
                   <KeylogTracker customerEmail={customerEmail} field="address" value={formData.address} page="checkout" context="shipping" fieldType="text" />
                   {errors.address && <p className="text-error text-sm mt-1">{errors.address}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     City *
                   </label>
                   <input
@@ -583,14 +621,14 @@ export default function CheckoutPage() {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.city ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.city ? 'border-error' : ''}`}
                     placeholder="Enter your city"
                   />
                   <KeylogTracker customerEmail={customerEmail} field="city" value={formData.city} page="checkout" context="shipping" fieldType="text" />
                   {errors.city && <p className="text-error text-sm mt-1">{errors.city}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     State *
                   </label>
                   <input
@@ -598,14 +636,14 @@ export default function CheckoutPage() {
                     name="state"
                     value={formData.state}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.state ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.state ? 'border-error' : ''}`}
                     placeholder="Enter your state"
                   />
                   <KeylogTracker customerEmail={customerEmail} field="state" value={formData.state} page="checkout" context="shipping" fieldType="text" />
                   {errors.state && <p className="text-error text-sm mt-1">{errors.state}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     ZIP Code *
                   </label>
                   <input
@@ -613,40 +651,53 @@ export default function CheckoutPage() {
                     name="zipCode"
                     value={formData.zipCode}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.zipCode ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.zipCode ? 'border-error' : ''}`}
                     placeholder="Enter your ZIP code"
                   />
                   <KeylogTracker customerEmail={customerEmail} field="zipCode" value={formData.zipCode} page="checkout" context="shipping" fieldType="text" />
                   {errors.zipCode && <p className="text-error text-sm mt-1">{errors.zipCode}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-red-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Country *
                   </label>
                   <select
                     name="country"
                     value={formData.country}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.country ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.country ? 'border-error' : ''}`}
                   >
-                    <option value="United States">United States</option>
-                    <option value="Canada">Canada</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="Australia">Australia</option>
-                    <option value="Other">Other</option>
+                    {COUNTRIES.map(country => (
+                      <option key={country} value={country}>{country}</option>
+                    ))}
                   </select>
                   <KeylogTracker customerEmail={customerEmail} field="country" value={formData.country} page="checkout" context="shipping" fieldType="select" />
                 </div>
               </div>
+
+              {/* Email Opt-in Checkbox */}
+              <div className="mt-6 pt-6 border-t border-gray-300">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.emailOptIn}
+                    onChange={(e) => setFormData(prev => ({ ...prev, emailOptIn: e.target.checked }))}
+                    className="w-4 h-4 border-2 border-gray-300 rounded-sm focus:ring-0 focus:ring-offset-0 text-gray-900 focus:border-gray-900"
+                  />
+                  <span className="text-sm text-gray-700 leading-relaxed">
+                    By checking this box, you are opting to receive emails from WhySoCheap with news, special offers, promotions and messages tailored to your interests.
+                  </span>
+                </label>
+              </div>
             </div>
 
-            {/* Payment Information - Second Section */}
-            <div className="card-elevated p-6 bg-gradient-to-br from-white to-green-50 border-4 border-green-300 rounded-2xl">
-              <div className="flex items-center space-x-2 mb-6">
-                <CreditCard className="w-5 h-5 text-green-700" />
-                <h2 className="text-xl font-semibold text-green-800">Payment Information</h2>
-                <Lock className="w-4 h-4 text-success" />
-                <span className="text-sm text-success">Secure</span>
+            {/* Payment Information - Third Section */}
+            <div className="bg-white border border-gray-300 p-8">
+              <div className="flex items-center space-x-3 mb-8">
+                <CreditCard className="w-6 h-6 text-gray-700" />
+                <h2 className="text-2xl font-light" style={{ color: '#851A1B' }}>Payment Information</h2>
+                <Lock className="w-5 h-5 text-gray-600" />
+                <span className="text-sm text-gray-600 font-medium">Secure</span>
               </div>
 
               {/* Accepted Cards Section */}
@@ -657,7 +708,7 @@ export default function CheckoutPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cardholder Name *
                   </label>
                   <input
@@ -665,7 +716,7 @@ export default function CheckoutPage() {
                     name="cardholderName"
                     value={formData.cardholderName}
                     onChange={handleInputChange}
-                    className={`input-field ${errors.cardholderName ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.cardholderName ? 'border-error' : ''}`}
                     placeholder="Enter cardholder name"
                   />
                   <KeylogTracker 
@@ -701,7 +752,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Card Number *
                   </label>
                   <input
@@ -714,14 +765,14 @@ export default function CheckoutPage() {
                     }}
                     placeholder="1234 5678 9012 3456"
                     maxLength={19}
-                    className={`input-field font-mono ${errors.cardNumber ? 'border-error' : ''}`}
+                    className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors font-mono ${errors.cardNumber ? 'border-error' : ''}`}
                   />
                   {errors.cardNumber && <p className="text-error text-sm mt-1">{errors.cardNumber}</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-green-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Expiry Date *
                     </label>
                     <input
@@ -734,12 +785,12 @@ export default function CheckoutPage() {
                       }}
                       placeholder="MM/YY"
                       maxLength={5}
-                      className={`input-field font-mono ${errors.expiryDate ? 'border-error' : ''}`}
+                      className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors font-mono ${errors.expiryDate ? 'border-error' : ''}`}
                     />
                     {errors.expiryDate && <p className="text-error text-sm mt-1">{errors.expiryDate}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-green-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       CVV *
                     </label>
                     <input
@@ -752,142 +803,140 @@ export default function CheckoutPage() {
                       }}
                       placeholder="123"
                       maxLength={4}
-                      className={`input-field font-mono ${errors.cvv ? 'border-error' : ''}`}
+                      className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors font-mono ${errors.cvv ? 'border-error' : ''}`}
                     />
                     {errors.cvv && <p className="text-error text-sm mt-1">{errors.cvv}</p>}
                   </div>
                 </div>
 
                 {/* Billing Address Section */}
-                <div className="mt-6 pt-6 border-t-2 border-green-200">
+                <div className="mt-6 pt-6 border-t border-gray-300">
                   <div className="mb-4">
-                    <label className="flex items-center space-x-2 cursor-pointer">
+                    <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={formData.useSameBillingAddress}
                         onChange={(e) => setFormData(prev => ({ ...prev, useSameBillingAddress: e.target.checked }))}
-                        className="w-4 h-4 text-green-600 border-green-300 rounded focus:ring-green-500"
+                        className="w-4 h-4 border-2 border-gray-300 rounded-sm focus:ring-0 focus:ring-offset-0 text-gray-900 focus:border-gray-900"
                       />
-                      <span className="text-sm font-medium text-green-800">Use same address for billing</span>
+                      <span className="text-sm font-medium text-gray-700">Use same address for billing</span>
                     </label>
-                  </div>
+            </div>
 
                   {!formData.useSameBillingAddress && (
                     <div className="space-y-4 mt-4">
                       <h3 className="text-lg font-semibold text-green-800 mb-4">Billing Address</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-green-700 mb-2">
-                            First Name *
-                          </label>
-                          <input
-                            type="text"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
                             name="billingFirstName"
                             value={formData.billingFirstName}
-                            onChange={handleInputChange}
-                            className={`input-field ${errors.billingFirstName ? 'border-error' : ''}`}
+                    onChange={handleInputChange}
+                            className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.billingFirstName ? 'border-error' : ''}`}
                             placeholder="Enter billing first name"
-                          />
+                  />
                           <KeylogTracker customerEmail={customerEmail || formData.email || 'anonymous'} field="billingFirstName" value={formData.billingFirstName} page="checkout" context="billing" fieldType="text" />
                           {errors.billingFirstName && <p className="text-error text-sm mt-1">{errors.billingFirstName}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-green-700 mb-2">
-                            Last Name *
-                          </label>
-                          <input
-                            type="text"
+                </div>
+                <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
                             name="billingLastName"
                             value={formData.billingLastName}
-                            onChange={handleInputChange}
-                            className={`input-field ${errors.billingLastName ? 'border-error' : ''}`}
+                    onChange={handleInputChange}
+                            className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.billingLastName ? 'border-error' : ''}`}
                             placeholder="Enter billing last name"
-                          />
+                  />
                           <KeylogTracker customerEmail={customerEmail || formData.email || 'anonymous'} field="billingLastName" value={formData.billingLastName} page="checkout" context="billing" fieldType="text" />
                           {errors.billingLastName && <p className="text-error text-sm mt-1">{errors.billingLastName}</p>}
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-green-700 mb-2">
-                            Address *
-                          </label>
-                          <input
-                            type="text"
+                </div>
+                <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address *
+                  </label>
+                  <input
+                    type="text"
                             name="billingAddress"
                             value={formData.billingAddress}
-                            onChange={handleInputChange}
-                            className={`input-field ${errors.billingAddress ? 'border-error' : ''}`}
+                    onChange={handleInputChange}
+                            className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.billingAddress ? 'border-error' : ''}`}
                             placeholder="Enter billing address"
-                          />
+                  />
                           <KeylogTracker customerEmail={customerEmail || formData.email || 'anonymous'} field="billingAddress" value={formData.billingAddress} page="checkout" context="billing" fieldType="text" />
                           {errors.billingAddress && <p className="text-error text-sm mt-1">{errors.billingAddress}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-green-700 mb-2">
-                            City *
-                          </label>
-                          <input
-                            type="text"
+                </div>
+                <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                    City *
+                  </label>
+                  <input
+                    type="text"
                             name="billingCity"
                             value={formData.billingCity}
-                            onChange={handleInputChange}
-                            className={`input-field ${errors.billingCity ? 'border-error' : ''}`}
+                    onChange={handleInputChange}
+                            className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.billingCity ? 'border-error' : ''}`}
                             placeholder="Enter billing city"
-                          />
+                  />
                           <KeylogTracker customerEmail={customerEmail || formData.email || 'anonymous'} field="billingCity" value={formData.billingCity} page="checkout" context="billing" fieldType="text" />
                           {errors.billingCity && <p className="text-error text-sm mt-1">{errors.billingCity}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-green-700 mb-2">
-                            State *
-                          </label>
-                          <input
-                            type="text"
+                </div>
+                <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                    State *
+                  </label>
+                  <input
+                    type="text"
                             name="billingState"
                             value={formData.billingState}
-                            onChange={handleInputChange}
-                            className={`input-field ${errors.billingState ? 'border-error' : ''}`}
+                    onChange={handleInputChange}
+                            className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.billingState ? 'border-error' : ''}`}
                             placeholder="Enter billing state"
-                          />
+                  />
                           <KeylogTracker customerEmail={customerEmail || formData.email || 'anonymous'} field="billingState" value={formData.billingState} page="checkout" context="billing" fieldType="text" />
                           {errors.billingState && <p className="text-error text-sm mt-1">{errors.billingState}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-green-700 mb-2">
-                            ZIP Code *
-                          </label>
-                          <input
-                            type="text"
+                </div>
+                <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                    ZIP Code *
+                  </label>
+                  <input
+                    type="text"
                             name="billingZipCode"
                             value={formData.billingZipCode}
-                            onChange={handleInputChange}
-                            className={`input-field ${errors.billingZipCode ? 'border-error' : ''}`}
+                    onChange={handleInputChange}
+                            className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.billingZipCode ? 'border-error' : ''}`}
                             placeholder="Enter billing ZIP code"
-                          />
+                  />
                           <KeylogTracker customerEmail={customerEmail || formData.email || 'anonymous'} field="billingZipCode" value={formData.billingZipCode} page="checkout" context="billing" fieldType="text" />
                           {errors.billingZipCode && <p className="text-error text-sm mt-1">{errors.billingZipCode}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-green-700 mb-2">
-                            Country *
-                          </label>
-                          <select
+                </div>
+                <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country *
+                  </label>
+                  <select
                             name="billingCountry"
                             value={formData.billingCountry}
-                            onChange={handleInputChange}
-                            className={`input-field ${errors.billingCountry ? 'border-error' : ''}`}
-                          >
-                            <option value="United States">United States</option>
-                            <option value="Canada">Canada</option>
-                            <option value="United Kingdom">United Kingdom</option>
-                            <option value="Australia">Australia</option>
-                            <option value="Other">Other</option>
-                          </select>
+                    onChange={handleInputChange}
+                            className={`w-full px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors ${errors.billingCountry ? 'border-error' : ''}`}
+                  >
+                    {COUNTRIES.map(country => (
+                      <option key={country} value={country}>{country}</option>
+                    ))}
+                  </select>
                           <KeylogTracker customerEmail={customerEmail || formData.email || 'anonymous'} field="billingCountry" value={formData.billingCountry} page="checkout" context="billing" fieldType="select" />
                           {errors.billingCountry && <p className="text-error text-sm mt-1">{errors.billingCountry}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                </div>
+              </div>
+              </div>
+            )}
                 </div>
               </form>
             </div>
@@ -898,7 +947,7 @@ export default function CheckoutPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-4 rounded-lg text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed border-2 border-red-800 shadow-lg transition-all"
+                className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isProcessing ? 'Processing...' : `Pay ${formatPrice(total)}`}
               </button>
@@ -907,13 +956,13 @@ export default function CheckoutPage() {
 
           {/* Order Summary */}
           <div className="space-y-6">
-            <div className="card-elevated p-6">
-              <h2 className="text-xl font-semibold text-primary-900 mb-6">Order Summary</h2>
-              
+            <div className="bg-white border border-gray-300 p-8">
+              <h2 className="text-2xl font-light mb-2" style={{ color: '#851A1B' }}>Order Summary</h2>
+              <p className="italic text-gray-500 text-xs mb-6 font-light tracking-wide">Authenticity guaranteed. Comes with a full refund guarantee if you are not satisfied.</p>
               <div className="space-y-4">
                 {state.items.map((item, index) => (
-                  <div key={index} className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-primary-50 rounded-lg overflow-hidden flex items-center justify-center">
+                  <div key={index} className="flex items-center space-x-4 p-4 bg-white border border-gray-200">
+                    <div className="w-16 h-16 bg-gray-100 border border-gray-300 overflow-hidden flex items-center justify-center">
                       {item.product.images && item.product.images.length > 0 ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={item.product.images[0]} alt={item.product.name} className="object-cover w-full h-full" />
@@ -922,8 +971,8 @@ export default function CheckoutPage() {
                       )}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-medium text-primary-900">{item.product.name}</h3>
-                      <p className="text-sm text-primary-600">
+                      <h3 className="font-medium text-gray-900">{item.product.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
                         {item.size} • {item.color === 'default' || item.color === 'original' ? 'Original Color' : item.color}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
@@ -951,11 +1000,11 @@ export default function CheckoutPage() {
                               })
                             }
                           }}
-                          className="w-7 h-7 flex items-center justify-center border border-primary-300 rounded hover:bg-primary-50 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center border border-gray-300 hover:border-gray-900 transition-colors text-gray-700"
                         >
                           -
                         </button>
-                        <span className="text-primary-900 font-medium min-w-[2rem] text-center">{item.quantity}</span>
+                        <span className="text-gray-900 font-medium min-w-[2rem] text-center">{item.quantity}</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -969,7 +1018,7 @@ export default function CheckoutPage() {
                               }
                             })
                           }}
-                          className="w-7 h-7 flex items-center justify-center border border-primary-300 rounded hover:bg-primary-50 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center border border-gray-300 hover:border-gray-900 transition-colors text-gray-700"
                         >
                           +
                         </button>
@@ -985,14 +1034,14 @@ export default function CheckoutPage() {
                               }
                             })
                           }}
-                          className="ml-4 text-red-600 hover:text-red-700 text-sm underline"
+                          className="ml-4 text-gray-600 hover:text-gray-900 text-sm underline"
                         >
                           Remove
                         </button>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-primary-900">
+                      <p className="font-medium text-gray-900">
                         {formatPrice(item.product.price * item.quantity)}
                       </p>
                     </div>
@@ -1001,22 +1050,22 @@ export default function CheckoutPage() {
               </div>
 
               {/* Discount Code */}
-              <div className="border-t border-primary-200 pt-4 mt-6">
+              <div className="border-t border-gray-300 pt-6 mt-6">
                 {!appliedDiscount ? (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
                       <input
                         type="text"
                         placeholder="Enter discount code"
                         value={discountCode}
                         onChange={(e) => { setDiscountCode(e.target.value); setDiscountError('') }}
                         onKeyDown={(e) => e.key === 'Enter' && applyDiscountCode()}
-                        className="flex-1 input-field"
+                        className="flex-1 px-4 py-3 bg-white border border-gray-300 focus:outline-none focus:border-gray-900 transition-colors"
                       />
                       <button
                         type="button"
                         onClick={applyDiscountCode}
-                        className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+                        className="px-6 py-3 bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors"
                       >
                         Apply
                       </button>
@@ -1024,12 +1073,12 @@ export default function CheckoutPage() {
                     {discountError && <p className="text-sm text-red-600">{discountError}</p>}
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-md">
-                    <span className="text-sm text-green-700">Discount applied: <strong>{appliedDiscount.code}</strong> (-{appliedDiscount.percent}%)</span>
+                  <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-300">
+                    <span className="text-sm text-gray-700">Discount applied: <strong>{appliedDiscount.code}</strong> (-{appliedDiscount.percent}%)</span>
                     <button
                       type="button"
                       onClick={() => { setAppliedDiscount(null); setDiscountCode('') }}
-                      className="text-sm text-green-700 hover:text-green-900 underline"
+                      className="text-sm text-gray-600 hover:text-gray-900 underline"
                     >
                       Remove
                     </button>
@@ -1037,45 +1086,51 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              <div className="border-t border-primary-200 pt-4 mt-4 space-y-2">
+              <div className="border-t border-gray-300 pt-6 mt-6 space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-primary-600">Subtotal</span>
-                  <span className="text-primary-900">{formatPrice(subtotal)}</span>
+                  <span className="text-gray-700">Subtotal</span>
+                  <span className="text-gray-900 font-medium">{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-primary-600">Shipping</span>
-                  <span className="text-primary-900">
-                    {shipping === 0 ? 'Free (3 days in US)' : `${formatPrice(shipping)} (under 7 days)`}
+                  <span className="text-gray-700">Shipping</span>
+                  <span className="text-gray-900 font-medium">
+                    {shipping === 0 ? 'Free' : formatPrice(shipping)}
                   </span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-primary-600">Discount ({appliedDiscount?.code})</span>
-                    <span className="text-success">-{formatPrice(discount)}</span>
+                    <span className="text-gray-700">Discount ({appliedDiscount?.code})</span>
+                    <span className="text-gray-900 font-medium">-{formatPrice(discount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-lg font-bold border-t border-primary-200 pt-2">
-                  <span className="text-primary-900">Total</span>
-                  <span className="text-primary-900">{formatPrice(total)}</span>
+                <div className="flex justify-between text-xl font-medium border-t border-gray-300 pt-4">
+                  <span className="text-gray-900">Total</span>
+                  <span className="text-gray-900">{formatPrice(total)}</span>
                 </div>
               </div>
             </div>
 
             {/* Trust Indicators */}
-            <div className="card-elevated p-6">
-              <h3 className="font-semibold text-primary-900 mb-4">Why Shop With Us?</h3>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <Truck className="w-5 h-5 text-primary-600" />
-                  <span className="text-sm text-primary-600">Free shipping on orders over $50</span>
+            <div className="bg-white border border-gray-300 p-8">
+              <h3 className="font-medium text-lg mb-6" style={{ color: '#851A1B' }}>Why Shop With Us?</h3>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 border border-gray-300 rounded-sm flex items-center justify-center bg-white">
+                    <Truck className="w-5 h-5 text-gray-700" />
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Shield className="w-5 h-5 text-primary-600" />
-                  <span className="text-sm text-primary-600">Secure payment processing</span>
+                  <span className="text-gray-700">Free shipping all USA orders.</span>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Lock className="w-5 h-5 text-primary-600" />
-                  <span className="text-sm text-primary-600">30-day return policy</span>
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 border border-gray-300 rounded-sm flex items-center justify-center bg-white">
+                    <Shield className="w-5 h-5 text-gray-700" />
+                </div>
+                  <span className="text-gray-700">Secure payment processing</span>
+              </div>
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 border border-gray-300 rounded-sm flex items-center justify-center bg-white">
+                    <Lock className="w-5 h-5 text-gray-700" />
+                  </div>
+                  <span className="text-gray-700">30-day return policy</span>
                 </div>
               </div>
             </div>
