@@ -456,11 +456,11 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
   }
 
   const handleAddToCart = () => {
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+    if (product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && !selectedSize) {
       setToast({ open: true, message: 'Please select a size', type: 'info' })
       return
     }
-    if (product.colors && product.colors.length > 0 && !selectedColor) {
+    if (product.colors && Array.isArray(product.colors) && product.colors.length > 0 && !selectedColor) {
       setToast({ open: true, message: 'Please select a color', type: 'info' })
       return
     }
@@ -477,7 +477,7 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
       {/* Product Image - Editorial Style */}
       <Link href={`/products/${product.id}`} className="block mb-3">
         <div className="aspect-square bg-gray-50 relative overflow-hidden">
-          {product.images && product.images.length > 0 ? (
+          {Array.isArray(product.images) && product.images.length > 0 ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img 
               src={product.images[0]} 
@@ -497,11 +497,11 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
             <button
               onClick={(e) => {
                 e.preventDefault()
-                if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+                if (product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && !selectedSize) {
                   setToast({ open: true, message: 'Please select a size', type: 'info' })
                   return
                 }
-                if (product.colors && product.colors.length > 0 && !selectedColor) {
+                if (product.colors && Array.isArray(product.colors) && product.colors.length > 0 && !selectedColor) {
                   setToast({ open: true, message: 'Please select a color', type: 'info' })
                   return
                 }
@@ -530,14 +530,20 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
           
           {/* Rating - Inline */}
           <div className="flex items-center gap-0.5">
-            <Star className="w-2.5 h-2.5 text-gray-400 fill-current" />
-            <span className="text-[9px] text-gray-400 font-light">{rating.stars.toFixed(1)}</span>
+            {[...Array(5)].map((_, i) => (
+              <Star 
+                key={i} 
+                className={`w-2.5 h-2.5 ${i < Math.floor(rating.stars) ? 'fill-current' : i < rating.stars ? 'fill-current opacity-50' : ''}`} 
+                style={{ color: i < Math.floor(rating.stars) ? '#851A1B' : i < rating.stars ? '#851A1B' : '#d1d5db' }} 
+              />
+            ))}
+            <span className="text-[9px] text-gray-400 font-light ml-0.5">{rating.stars.toFixed(1)}</span>
           </div>
         </div>
 
         {/* Size & Color - Compact */}
         <div className="flex items-center gap-2 pt-2">
-          {product.sizes && product.sizes.length > 0 && (
+          {product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && (
             <div className="flex items-center gap-1">
               {product.sizes.slice(0, 3).map(size => (
                 <button
@@ -552,13 +558,13 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
                   {size}
                 </button>
               ))}
-              {product.sizes.length > 3 && (
+              {Array.isArray(product.sizes) && product.sizes.length > 3 && (
                 <span className="text-[10px] text-gray-400">+{product.sizes.length - 3}</span>
               )}
             </div>
           )}
           
-          {product.colors && product.colors.length > 0 && (
+          {product.colors && Array.isArray(product.colors) && product.colors.length > 0 && (
             <div className="flex items-center gap-1">
               {product.colors.slice(0, 3).map(color => (
                 <button

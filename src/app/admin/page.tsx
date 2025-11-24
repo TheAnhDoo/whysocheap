@@ -38,7 +38,14 @@ export default function AdminPage() {
       fetch('/api/discount-codes').then(r => r.json()).catch(() => ({ discountCodes: [] })),
     ])
     setCollections(c.collections || [])
-    setProducts(p.products || [])
+    // Normalize products to ensure images, sizes, and colors are always arrays
+    const normalizedProducts = (p.products || []).map((product: any) => ({
+      ...product,
+      images: Array.isArray(product.images) ? product.images : (product.images ? [product.images] : []),
+      sizes: Array.isArray(product.sizes) ? product.sizes : (product.sizes ? [product.sizes] : []),
+      colors: Array.isArray(product.colors) ? product.colors : (product.colors ? [product.colors] : [])
+    }))
+    setProducts(normalizedProducts)
     setProductTypes(pt.productTypes || [])
     setDiscountCodes(dc.discountCodes || [])
   }
@@ -127,6 +134,17 @@ export default function AdminPage() {
 
   const editProduct = (product: Product) => {
     setEditingProduct(product)
+    // Ensure images, sizes, and colors are arrays before joining
+    const imagesArray = Array.isArray(product.images) 
+      ? product.images 
+      : (product.images ? [product.images] : [])
+    const sizesArray = Array.isArray(product.sizes) 
+      ? product.sizes 
+      : (product.sizes ? [product.sizes] : [])
+    const colorsArray = Array.isArray(product.colors) 
+      ? product.colors 
+      : (product.colors ? [product.colors] : [])
+    
     setNewProduct({
       name: product.name,
       description: product.description,
@@ -134,9 +152,9 @@ export default function AdminPage() {
       collectionId: product.collectionId || '',
       productTypeId: product.productTypeId || '',
       category: product.category || '',
-      images: product.images?.join(', ') || '',
-      sizes: product.sizes?.join(',') || '',
-      colors: product.colors?.join(',') || '',
+      images: imagesArray.join(', ') || '',
+      sizes: sizesArray.join(',') || '',
+      colors: colorsArray.join(',') || '',
       featured: product.featured || false
     })
     setShowProductModal(true)

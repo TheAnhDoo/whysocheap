@@ -44,6 +44,39 @@ export default function ProductPage() {
   const [rating, setRating] = useState<{ stars: number; reviews: number } | null>(null)
   const [stock, setStock] = useState<Record<string, number>>({})
   
+  // Ensure stock exists for all sizes when product changes
+  useEffect(() => {
+    if (product && params.id) {
+      const sizesArray = Array.isArray(product.sizes) ? product.sizes : []
+      const storedStock = localStorage.getItem(`product-stock-${params.id}`)
+      let currentStock: Record<string, number> = storedStock ? JSON.parse(storedStock) : {}
+      let stockUpdated = false
+      
+      if (sizesArray.length > 0) {
+        // Check if all sizes have stock, generate missing ones
+        sizesArray.forEach((size: string) => {
+          if (size && size.trim() && !(size in currentStock)) {
+            currentStock[size] = Math.floor(2 + Math.random() * 4) // 2 to 5
+            stockUpdated = true
+          }
+        })
+      } else {
+        // Product without sizes
+        if (!('N/A' in currentStock)) {
+          currentStock['N/A'] = Math.floor(2 + Math.random() * 4) // 2 to 5
+          stockUpdated = true
+        }
+      }
+      
+      if (stockUpdated) {
+        localStorage.setItem(`product-stock-${params.id}`, JSON.stringify(currentStock))
+        setStock(currentStock)
+      } else if (Object.keys(currentStock).length > 0) {
+        setStock(currentStock)
+      }
+    }
+  }, [product, params.id])
+
   // Update quantity when size changes to respect stock limits
   useEffect(() => {
     if (product && Object.keys(stock).length > 0) {
@@ -84,23 +117,44 @@ export default function ProductPage() {
     try {
       const response = await fetch(`/api/products?id=${id}`)
       const data = await response.json()
+      // Ensure images is always an array
+      if (data.product) {
+        data.product.images = Array.isArray(data.product.images) 
+          ? data.product.images 
+          : (data.product.images ? [data.product.images] : [])
+        // Ensure sizes and colors are arrays too
+        data.product.sizes = Array.isArray(data.product.sizes) ? data.product.sizes : []
+        data.product.colors = Array.isArray(data.product.colors) ? data.product.colors : []
+      }
       setProduct(data.product)
       
-      // Load or generate stock
-      const storedStock = localStorage.getItem(`product-stock-${id}`)
-      if (storedStock) {
-        setStock(JSON.parse(storedStock))
-      } else if (data.product) {
-        const newStock: Record<string, number> = {}
-        if (data.product.sizes && data.product.sizes.length > 0) {
-          data.product.sizes.forEach((size: string) => {
-            newStock[size] = Math.floor(2 + Math.random() * 4) // 2 to 5
-          })
+      // Load or generate stock - ensure it happens after product is normalized
+      if (data.product) {
+        const storedStock = localStorage.getItem(`product-stock-${id}`)
+        if (storedStock) {
+          const parsedStock = JSON.parse(storedStock)
+          setStock(parsedStock)
         } else {
-          newStock['N/A'] = Math.floor(2 + Math.random() * 4) // 2 to 5 for products without size
+          // Generate stock for all sizes (2-5 per size)
+          const newStock: Record<string, number> = {}
+          const sizesArray = Array.isArray(data.product.sizes) ? data.product.sizes : []
+          
+          if (sizesArray.length > 0) {
+            // Generate stock for each size: 2-5 items
+            sizesArray.forEach((size: string) => {
+              if (size && size.trim()) {
+                newStock[size] = Math.floor(2 + Math.random() * 4) // 2 to 5
+              }
+            })
+          } else {
+            // Products without sizes get stock for 'N/A'
+            newStock['N/A'] = Math.floor(2 + Math.random() * 4) // 2 to 5
+          }
+          
+          // Store stock in localStorage (persistent, won't change)
+          localStorage.setItem(`product-stock-${id}`, JSON.stringify(newStock))
+          setStock(newStock)
         }
-        localStorage.setItem(`product-stock-${id}`, JSON.stringify(newStock))
-        setStock(newStock)
       }
     } catch (error) {
       console.error('Failed to fetch product:', error)
@@ -246,7 +300,7 @@ export default function ProductPage() {
           <div className="space-y-4">
             {/* Main Image */}
             <div className="relative aspect-square bg-white border border-gray-300 overflow-hidden group">
-              {product.images && product.images.length > 0 ? (
+              {Array.isArray(product.images) && product.images.length > 0 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={product.images[selectedImage] || product.images[0]} alt={product.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" />
               ) : (
@@ -271,7 +325,7 @@ export default function ProductPage() {
 
             {/* Thumbnail Images */}
             <div className="grid grid-cols-4 gap-4">
-              {(product.images?.length ? product.images : [1, 2, 3, 4]).map((_, index) => (
+              {(Array.isArray(product.images) && product.images.length > 0 ? product.images : [1, 2, 3, 4]).map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
@@ -279,7 +333,7 @@ export default function ProductPage() {
                     selectedImage === index ? 'border-gray-900' : 'border-gray-300 hover:border-gray-900'
                   }`}
                 >
-                  {product.images && product.images[index] ? (
+                  {Array.isArray(product.images) && product.images[index] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={product.images[index]} alt={`${product.name} ${index+1}`} className="object-cover w-full h-full" />
                   ) : (
@@ -324,14 +378,23 @@ export default function ProductPage() {
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     {product.sizes.map(size => {
-                      const sizeStock = stock[size] || 0
-                      const isOutOfStock = sizeStock === 0
+                      // Ensure stock exists for this size - generate if missing
+                      let sizeStock = stock[size]
+                      if (sizeStock === undefined && params.id) {
+                        // Generate stock on the fly if missing (shouldn't happen, but safety check)
+                        sizeStock = Math.floor(2 + Math.random() * 4) // 2 to 5
+                        const updatedStock = { ...stock, [size]: sizeStock }
+                        localStorage.setItem(`product-stock-${params.id}`, JSON.stringify(updatedStock))
+                        setStock(updatedStock)
+                      }
+                      const finalStock = sizeStock || 0
+                      const isOutOfStock = finalStock === 0
                       return (
                         <button
                           key={size}
                           onClick={() => !isOutOfStock && setSelectedSize(size)}
                           disabled={isOutOfStock}
-                          className={`py-2 px-3 border-2 transition-colors font-medium text-sm relative ${
+                          className={`py-2.5 px-4 border transition-colors font-light text-sm ${
                             selectedSize === size
                               ? 'border-gray-900 bg-gray-900 text-white'
                               : isOutOfStock
@@ -340,19 +403,15 @@ export default function ProductPage() {
                           }`}
                         >
                           {size}
-                          {sizeStock > 0 && (
-                            <span className="absolute -top-1 -right-1 text-[9px] text-gray-500 font-light">
-                              {sizeStock}
-                            </span>
-                          )}
                         </button>
                       )
                     })}
                   </div>
                 </div>
               )}
-
+<br />
               {/* Color Selection */}
+            
               {product.colors && product.colors.length > 0 && (
                 <div className="pt-6 border-t border-gray-200">
                   <h3 className="text-sm font-medium mb-3" style={{ color: '#851A1B' }}>Color</h3>
@@ -378,13 +437,13 @@ export default function ProductPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium" style={{ color: '#851A1B' }}>Quantity</h3>
                   {(!product.sizes || product.sizes.length === 0) && stock['N/A'] !== undefined && (
-                    <span className="text-xs text-gray-500 font-light">
-                      {stock['N/A']} in stock
+                    <span className="text-xs text-gray-400 font-light tracking-wide">
+                      {stock['N/A']} available
                     </span>
                   )}
                   {product.sizes && product.sizes.length > 0 && selectedSize && stock[selectedSize] !== undefined && (
-                    <span className="text-xs text-gray-500 font-light">
-                      {stock[selectedSize]} in stock
+                    <span className="text-xs text-gray-400 font-light tracking-wide">
+                      {stock[selectedSize]} available
                     </span>
                   )}
                 </div>
@@ -442,7 +501,7 @@ export default function ProductPage() {
       </div>
 
       {/* Zoom Modal */}
-      {showZoom && product.images && product.images.length > 0 && (
+      {showZoom && Array.isArray(product.images) && product.images.length > 0 && (
         <ImageZoom
           imageSrc={product.images[selectedImage] || product.images[0]}
           isOpen={showZoom}
