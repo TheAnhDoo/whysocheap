@@ -292,7 +292,7 @@ export default function HomePage() {
               </h1>
               
               <p className="text-lg text-gray-700 leading-relaxed mb-10 max-w-xl">
-                Authentic celebrity merchandise. Offical goods from your favorite artists and brands.
+                Authentic celebrity merchandise. Official goods from your favorite artists and brands.
                 <br></br>
                 Verified - High quality - Affordable prices - Shipping worldwide.
               </p>
