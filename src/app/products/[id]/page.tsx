@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Star, ShoppingCart, ArrowLeft, Plus, Minus, Check, ZoomIn } from 'lucide-react'
+import { Star, ShoppingCart, ArrowLeft, Plus, Minus, Check, ZoomIn, Shield, Truck, ShieldCheck } from 'lucide-react'
 import { useCart } from '@/contexts/CartContext'
 import { formatPrice } from '@/lib/utils'
 import Link from 'next/link'
@@ -351,6 +351,9 @@ export default function ProductPage() {
             {/* Header with Size, Color, and Quantity */}
             <div className="bg-white border border-gray-300 p-8 relative">
               <h1 className="text-4xl font-light mb-4" style={{ color: '#851A1B' }}>{product.name}</h1>
+              <span className="italic text-gray-500 text-xs font-light">
+            Authenticity guaranteed. Comes with a full refund guarantee if you are not satisfied.
+                    </span>  <br />
               {rating && (
                 <div className="flex items-center space-x-4 mb-4">
                   <div className="flex items-center">
@@ -472,28 +475,59 @@ export default function ProductPage() {
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
+                
               </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-4">
+              <br />
+              <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
                   onClick={handleAddToCart}
-                  className="bg-gray-900 hover:bg-gray-800 text-white py-4 flex items-center justify-center space-x-2 font-medium transition-colors"
+                  className="relative py-4 flex items-center justify-center space-x-2 font-medium transition-all duration-300 backdrop-blur-md bg-white bg-opacity-20 border border-white border-opacity-30 text-gray-900 shadow-lg hover:shadow-xl hover:bg-opacity-30"
                 >
                   <ShoppingCart className="w-5 h-5" />
                   <span>Add to Cart</span>
                 </button>
                 <button
                   onClick={handleBuyNow}
-                  className="border-2 border-gray-900 text-gray-900 py-4 flex items-center justify-center space-x-2 font-medium hover:bg-gray-900 hover:text-white transition-colors"
+                  className="relative py-4 flex items-center justify-center space-x-2 font-medium transition-all duration-300 backdrop-blur-md bg-opacity-80 border border-opacity-30 text-white shadow-lg hover:shadow-xl hover:bg-opacity-90"
+                  style={{
+                    backgroundColor: 'rgba(133, 26, 27, 0.7)',
+                    borderColor: 'rgba(133, 26, 27, 0.5)',
+                  }}
                 >
                   <Check className="w-5 h-5" />
                   <span>Buy Now</span>
                 </button>
               </div>
             </div>
+            </div>
+
+            {/* Action Buttons */}
+
+            <div className="bg-white border border-gray-300 p-8">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 border border-gray-300 rounded-sm flex items-center justify-center bg-white">
+                    <Truck className="w-5 h-5 text-gray-700" />
+                </div>
+                  <span className="text-gray-700">Free shipping all USA orders.</span>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 border border-gray-300 rounded-sm flex items-center justify-center bg-white">
+                    <Shield className="w-5 h-5 text-gray-700" />
+                </div>
+                  <span className="text-gray-700">Secure payment processing</span>
+              </div>
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 border border-gray-300 rounded-sm flex items-center justify-center bg-white">
+                    <ShieldCheck className="w-5 h-5 text-gray-700" />
+                  </div>
+                  <span className="text-gray-700">30-day return policy</span>
+                </div>
+              </div>
+            </div>
+            
+            
 
            
           </div>
