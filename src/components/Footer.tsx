@@ -75,9 +75,23 @@ export default function Footer() {
           {/* Minimal column */}
           <div className="space-y-4">
             <h3 className="font-medium text-gray-900">Get in touch</h3>
-            <p className="text-gray-600 text-sm">
-              support@whysocheap.site
-            </p>
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>
+                <a href="mailto:support@whysocheap.site" className="hover:text-gray-900 transition-colors">
+                  support@whysocheap.site
+                </a>
+              </p>
+              <p>
+                <a href="tel:+17017991254" className="hover:text-gray-900 transition-colors">
+                  +1 (701) 799-1254
+                </a>
+              </p>
+              <div className="space-y-1 leading-relaxed pt-1">
+                <p>2799 154th Ave SE</p>
+                <p>Amenia, ND 58004</p>
+                <p>United States</p>
+              </div>
+            </div>
           </div>
         </div>
 

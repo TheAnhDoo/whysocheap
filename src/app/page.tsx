@@ -481,57 +481,47 @@ export default function HomePage() {
       {/* Section Divider */}
       <div className="border-t-2 border-gray-400 my-12"></div>
 
-      {/* Features Section */}
+      {/* Our Partners Section */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-light mb-4" style={{ color: '#851A1B' }}>
-              Why Choose Us?
+              Our Partners
             </h2>
-            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
-              Professional service, authentic products, and unbeatable prices.
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 border border-gray-300 bg-white relative">
-              <div className="w-12 h-12 border border-gray-300 rounded-sm flex items-center justify-center mb-4 bg-white">
-                <Truck className="w-6 h-6" style={{ color: '#851A1B' }} />
-              </div>
-              <h3 className="text-lg font-medium mb-2" style={{ color: '#851A1B' }}>Verified Authenticity</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Direct manufacturer sourcing means up to 70% savings compared to retail stores.
-              </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 items-center justify-items-center">
+            <div className="flex items-center justify-center w-full h-24 px-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="/api/review-images/images/Partner1.png" 
+                alt="Partner 1"
+                className="max-w-full max-h-full object-contain opacity-70 hover:opacity-100 transition-opacity duration-300"
+              />
             </div>
-
-            <div className="p-6 border border-gray-300 bg-white relative">
-              <div className="w-12 h-12 border border-gray-300 rounded-sm flex items-center justify-center mb-4 bg-white">
-                <Truck className="w-6 h-6" style={{ color: '#851A1B' }} />
-              </div>
-              <h3 className="text-lg font-medium mb-2" style={{ color: '#851A1B' }}>Worldwide Shipping</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Free shipping on all orders (US). Just $5 worldwide shipping fees for all other orders.
-              </p>
+            <div className="flex items-center justify-center w-full h-24 px-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="/api/review-images/images/Partner2.png" 
+                alt="Partner 2"
+                className="max-w-full max-h-full object-contain opacity-70 hover:opacity-100 transition-opacity duration-300"
+              />
             </div>
-
-            <div className="p-6 border border-gray-300 bg-white relative">
-              <div className="w-12 h-12 border border-gray-300 rounded-sm flex items-center justify-center mb-4 bg-white">
-                <Award className="w-6 h-6" style={{ color: '#851A1B' }} />
-              </div>
-              <h3 className="text-lg font-medium mb-2" style={{ color: '#851A1B' }}>Easy Returns</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Licensed and official merchandise. Quality guaranteed with 30-day return policy.
-              </p>
+            <div className="flex items-center justify-center w-full h-24 px-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="/api/review-images/images/Partner3.png" 
+                alt="Partner 3"
+                className="max-w-full max-h-full object-contain opacity-70 hover:opacity-100 transition-opacity duration-300"
+              />
             </div>
-
-            <div className="p-6 border border-gray-300 bg-white relative">
-              <div className="w-12 h-12 border border-gray-300 rounded-sm flex items-center justify-center mb-4 bg-white">
-                <Shield className="w-6 h-6" style={{ color: '#851A1B' }} />
-              </div>
-              <h3 className="text-lg font-medium mb-2" style={{ color: '#851A1B' }}>Secure & Trusted</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                SSL secured checkout. Trusted by 25,000+ customers worldwide with 4.7/5 rating.
-              </p>
+            <div className="flex items-center justify-center w-full h-24 px-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="/api/review-images/images/Partner4.png" 
+                alt="Partner 4"
+                className="max-w-full max-h-full object-contain opacity-70 hover:opacity-100 transition-opacity duration-300"
+              />
             </div>
           </div>
         </div>
@@ -667,14 +657,17 @@ export default function HomePage() {
             Start Saving Today
           </h2>
           <p className="text-xl text-gray-700 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Join 25,000+ customers who save money every day with our wholesale pricing.
+            Real merch. Real prices. Real savings. Join thousands of fans who discovered that authentic doesn't have to mean expensive.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
               href="/products"
-              className="inline-flex items-center justify-center px-10 py-3 bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors"
+              className="inline-flex items-center justify-center px-10 py-3 text-white font-medium transition-colors"
+              style={{ backgroundColor: '#851A1B' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#6b1516'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#851A1B'}
             >
-              Shop Black Friday Deals Now
+              Shop Now
               <ArrowRight className="ml-2 w-4 h-4" />
             </Link>
           </div>
