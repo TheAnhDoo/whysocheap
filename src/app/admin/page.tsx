@@ -61,13 +61,28 @@ export default function AdminPage() {
   
   const loadStats = async () => {
     try {
-      const res = await fetch('/api/tracking/stats')
+      const res = await fetch('/api/tracking/stats', {
+        cache: 'no-store', // Prevent caching
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
       const data = await res.json()
-      if (data.success) {
-        setStats(data.stats)
+      console.log('📊 Stats loaded:', data)
+      if (data.success && data.stats) {
+        console.log('✅ Setting stats:', data.stats)
+        setStats({
+          websiteVisits: data.stats.websiteVisits || 0,
+          checkoutVisits: data.stats.checkoutVisits || 0,
+          completedOrders: data.stats.completedOrders || 0,
+          estimatedBuyers: data.stats.estimatedBuyers || 0,
+          conversionRate: data.stats.conversionRate || '0.00'
+        })
+      } else {
+        console.warn('⚠️ Stats response not successful:', data)
       }
     } catch (error) {
-      console.error('Error loading stats:', error)
+      console.error('❌ Error loading stats:', error)
     }
   }
   
@@ -257,7 +272,7 @@ export default function AdminPage() {
         <section className="space-y-6">
           <h2 className="text-xl font-semibold">Traffic & Analytics</h2>
           {stats ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div key={`stats-${stats.websiteVisits}-${stats.checkoutVisits}`} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="card-elevated p-6">
                 <div className="text-sm text-gray-600 mb-2">Website Visits</div>
                 <div className="text-3xl font-bold" style={{ color: '#851A1B' }}>{stats.websiteVisits.toLocaleString()}</div>
@@ -312,12 +327,15 @@ export default function AdminPage() {
                           body: JSON.stringify({ type: 'website' })
                         })
                         const result = await res.json()
+                        console.log('🧹 Clear website result:', result)
                         if (res.ok && result.success) {
                           setToast({ open: true, message: 'Website visit logs cleared', type: 'success' })
-                          // Wait a moment for database to update, then refresh stats
+                          // Force immediate stats refresh
+                          await loadStats()
+                          // Also refresh again after a short delay to ensure database is updated
                           setTimeout(() => {
                             loadStats()
-                          }, 500)
+                          }, 300)
                         } else {
                           setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
                         }
@@ -340,12 +358,15 @@ export default function AdminPage() {
                           body: JSON.stringify({ type: 'checkout' })
                         })
                         const result = await res.json()
+                        console.log('🧹 Clear checkout result:', result)
                         if (res.ok && result.success) {
                           setToast({ open: true, message: 'Checkout visit logs cleared', type: 'success' })
-                          // Wait a moment for database to update, then refresh stats
+                          // Force immediate stats refresh
+                          await loadStats()
+                          // Also refresh again after a short delay to ensure database is updated
                           setTimeout(() => {
                             loadStats()
-                          }, 500)
+                          }, 300)
                         } else {
                           setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
                         }
@@ -368,12 +389,15 @@ export default function AdminPage() {
                           body: JSON.stringify({ type: 'all' })
                         })
                         const result = await res.json()
+                        console.log('🧹 Clear all result:', result)
                         if (res.ok && result.success) {
                           setToast({ open: true, message: 'All tracking data cleared', type: 'success' })
-                          // Wait a moment for database to update, then refresh stats
+                          // Force immediate stats refresh
+                          await loadStats()
+                          // Also refresh again after a short delay to ensure database is updated
                           setTimeout(() => {
                             loadStats()
-                          }, 500)
+                          }, 300)
                         } else {
                           setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
                         }
