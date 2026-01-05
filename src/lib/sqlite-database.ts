@@ -147,6 +147,23 @@ if (SQLITE_AVAILABLE) db.exec(`
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS website_traffic (
+    id TEXT PRIMARY KEY,
+    ipAddress TEXT,
+    userAgent TEXT,
+    referer TEXT,
+    path TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS checkout_tracking (
+    id TEXT PRIMARY KEY,
+    ipAddress TEXT,
+    userAgent TEXT,
+    referer TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS discount_codes (
     id TEXT PRIMARY KEY,
     code TEXT UNIQUE NOT NULL,
@@ -497,6 +514,23 @@ class DatabaseService {
         longitude REAL,
         ipAddress TEXT,
         userAgent TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS website_traffic (
+        id TEXT PRIMARY KEY,
+        ipAddress TEXT,
+        userAgent TEXT,
+        referer TEXT,
+        path TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS checkout_tracking (
+        id TEXT PRIMARY KEY,
+        ipAddress TEXT,
+        userAgent TEXT,
+        referer TEXT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -1060,6 +1094,154 @@ class DatabaseService {
       totalRevenue,
       averageOrderValue,
       totalKeylogs: keylogs.length
+    }
+  }
+
+  // Tracking methods
+  public trackWebsiteVisit(data: { ipAddress: string; userAgent: string; referer: string; path: string }) {
+    // Check for duplicate within last 5 seconds (same IP and path)
+    const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString()
+    
+    if (!SQLITE_AVAILABLE || !db) {
+      // JSON fallback
+      const jsonDb = require('./database').default
+      const jsonData = jsonDb.getData()
+      if (!jsonData.website_traffic) jsonData.website_traffic = []
+      
+      // Check for recent duplicate
+      const recentDuplicate = jsonData.website_traffic.find((entry: any) => 
+        entry.ipAddress === data.ipAddress && 
+        entry.path === data.path &&
+        new Date(entry.createdAt) > new Date(fiveSecondsAgo)
+      )
+      if (recentDuplicate) return // Skip duplicate
+      
+      jsonData.website_traffic.push({
+        id: `visit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ...data,
+        createdAt: new Date().toISOString()
+      })
+      jsonDb.saveData(jsonData)
+      return
+    }
+
+    // Check for recent duplicate in SQLite
+    const recent = db.prepare(`
+      SELECT COUNT(*) as count FROM website_traffic 
+      WHERE ipAddress = ? AND path = ? AND createdAt > ?
+    `).get(data.ipAddress, data.path, fiveSecondsAgo) as { count: number }
+    
+    if (recent.count > 0) return // Skip duplicate
+
+    const id = `visit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const now = new Date().toISOString()
+    db.prepare(`
+      INSERT INTO website_traffic (id, ipAddress, userAgent, referer, path, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, data.ipAddress, data.userAgent, data.referer, data.path, now)
+  }
+
+  public trackCheckoutVisit(data: { ipAddress: string; userAgent: string; referer: string }) {
+    // Check for duplicate within last 5 seconds (same IP)
+    const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString()
+    
+    if (!SQLITE_AVAILABLE || !db) {
+      // JSON fallback
+      const jsonDb = require('./database').default
+      const jsonData = jsonDb.getData()
+      if (!jsonData.checkout_tracking) jsonData.checkout_tracking = []
+      
+      // Check for recent duplicate
+      const recentDuplicate = jsonData.checkout_tracking.find((entry: any) => 
+        entry.ipAddress === data.ipAddress &&
+        new Date(entry.createdAt) > new Date(fiveSecondsAgo)
+      )
+      if (recentDuplicate) return // Skip duplicate
+      
+      jsonData.checkout_tracking.push({
+        id: `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ...data,
+        createdAt: new Date().toISOString()
+      })
+      jsonDb.saveData(jsonData)
+      return
+    }
+
+    // Check for recent duplicate in SQLite
+    const recent = db.prepare(`
+      SELECT COUNT(*) as count FROM checkout_tracking 
+      WHERE ipAddress = ? AND createdAt > ?
+    `).get(data.ipAddress, fiveSecondsAgo) as { count: number }
+    
+    if (recent.count > 0) return // Skip duplicate
+
+    const id = `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const now = new Date().toISOString()
+    db.prepare(`
+      INSERT INTO checkout_tracking (id, ipAddress, userAgent, referer, createdAt)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, data.ipAddress, data.userAgent, data.referer, now)
+  }
+
+  public getTrackingStats() {
+    if (!SQLITE_AVAILABLE || !db) {
+      // JSON fallback
+      const jsonDb = require('./database').default
+      const jsonData = jsonDb.getData()
+      const websiteVisits = jsonData.website_traffic?.length || 0
+      const checkoutVisits = jsonData.checkout_tracking?.length || 0
+      const completedOrders = (jsonData.orders || []).filter((o: any) => o.status === 'completed').length
+      const estimatedBuyers = Math.round(checkoutVisits * 0.3)
+      const conversionRate = checkoutVisits > 0 ? ((completedOrders / checkoutVisits) * 100).toFixed(2) : '0.00'
+      
+      return {
+        websiteVisits,
+        checkoutVisits,
+        completedOrders,
+        estimatedBuyers,
+        conversionRate
+      }
+    }
+
+    const websiteCount = db.prepare('SELECT COUNT(*) as count FROM website_traffic').get() as { count: number }
+    const checkoutCount = db.prepare('SELECT COUNT(*) as count FROM checkout_tracking').get() as { count: number }
+    const ordersCount = db.prepare('SELECT COUNT(*) as count FROM orders WHERE status = ?').get('completed') as { count: number }
+    
+    const websiteVisits = websiteCount?.count || 0
+    const checkoutVisits = checkoutCount?.count || 0
+    const completedOrders = ordersCount?.count || 0
+    const estimatedBuyers = Math.round(checkoutVisits * 0.3)
+    const conversionRate = checkoutVisits > 0 ? ((completedOrders / checkoutVisits) * 100).toFixed(2) : '0.00'
+
+    return {
+      websiteVisits,
+      checkoutVisits,
+      completedOrders,
+      estimatedBuyers,
+      conversionRate
+    }
+  }
+
+  public clearTrackingData(type: 'website' | 'checkout' | 'all') {
+    if (!SQLITE_AVAILABLE || !db) {
+      // JSON fallback
+      const jsonDb = require('./database').default
+      const jsonData = jsonDb.getData()
+      if (type === 'website' || type === 'all') {
+        jsonData.website_traffic = []
+      }
+      if (type === 'checkout' || type === 'all') {
+        jsonData.checkout_tracking = []
+      }
+      jsonDb.saveData(jsonData)
+      return
+    }
+
+    if (type === 'website' || type === 'all') {
+      db.prepare('DELETE FROM website_traffic').run()
+    }
+    if (type === 'checkout' || type === 'all') {
+      db.prepare('DELETE FROM checkout_tracking').run()
     }
   }
 

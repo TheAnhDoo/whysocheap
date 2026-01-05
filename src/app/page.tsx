@@ -13,6 +13,68 @@ interface Review {
   imagePath?: string // Path to local image file in data folder (e.g., "review1.jpg")
 }
 
+function FlashSaleBanner() {
+  const [timeLeft, setTimeLeft] = useState(4 * 60 * 60 * 1000) // 4 hours in milliseconds
+  const [isActive, setIsActive] = useState(true)
+
+  useEffect(() => {
+    // Load saved end time from localStorage or set new one
+    const savedEndTime = localStorage.getItem('flashSaleEndTime')
+    const now = Date.now()
+    
+    let endTime: number
+    if (savedEndTime) {
+      endTime = parseInt(savedEndTime)
+      // If saved time is in the past or less than 2 hours left, reset
+      if (endTime <= now || (endTime - now) < 2 * 60 * 60 * 1000) {
+        endTime = now + 4 * 60 * 60 * 1000 // Reset to 4 hours
+        localStorage.setItem('flashSaleEndTime', endTime.toString())
+      }
+    } else {
+      endTime = now + 4 * 60 * 60 * 1000 // 4 hours from now
+      localStorage.setItem('flashSaleEndTime', endTime.toString())
+    }
+
+    const updateTimer = () => {
+      const remaining = endTime - Date.now()
+      
+      if (remaining <= 0) {
+        // Reset timer
+        const newEndTime = Date.now() + 4 * 60 * 60 * 1000
+        localStorage.setItem('flashSaleEndTime', newEndTime.toString())
+        setTimeLeft(4 * 60 * 60 * 1000)
+        return
+      }
+      
+      setTimeLeft(remaining)
+    }
+
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const formatTime = (ms: number) => {
+    const hours = Math.floor(ms / (1000 * 60 * 60))
+    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((ms % (1000 * 60)) / 1000)
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  if (!isActive) return null
+
+  return (
+    <div className="inline-flex items-center gap-3 px-8 py-4 bg-white border-2 border-gray-900 mb-6 shadow-lg">
+      <Sparkles className="w-5 h-5" style={{ color: '#851A1B' }} />
+      <span className="text-lg font-bold" style={{ color: '#851A1B' }}>
+        FLASH SALE ON ALL PRODUCTS | 30% OFF | CODE: "F30" | ENDS IN: {formatTime(timeLeft)}
+      </span>
+      <Sparkles className="w-5 h-5" style={{ color: '#851A1B' }} />
+    </div>
+  )
+}
+
 function ReviewsCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -363,6 +425,8 @@ function ReviewsCarousel() {
 export default function HomePage() {
   const [collections, setCollections] = useState<{ id: string; name: string; slug: string; count: number }[]>([])
   const [hotProducts, setHotProducts] = useState<any[]>([])
+  const visitTrackedRef = useRef(false)
+  
   useEffect(() => {
     fetch('/api/collections?withCounts=true').then(r => r.json()).then(d => setCollections(d.collections || [])).catch(() => {})
     fetch('/api/products')
@@ -373,6 +437,16 @@ export default function HomePage() {
         setHotProducts((featured.length ? featured : products).slice(0, 6))
       })
       .catch(() => {})
+    
+    // Track website visit (only once)
+    if (visitTrackedRef.current) return
+    visitTrackedRef.current = true
+    
+    fetch('/api/tracking/visit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: '/' })
+    }).catch(console.error)
   }, [])
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#eae4df' }}>
@@ -382,12 +456,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Black Friday Banner */}
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-3 px-8 py-4 bg-white border-2 border-gray-900 mb-6 shadow-lg">
-              <Sparkles className="w-5 h-5" style={{ color: '#851A1B' }} />
-              <span className="text-lg font-bold" style={{ color: '#851A1B' }}>XMAS SALE | 30% OFF | CODE: "XMAS30"</span>
-              <Gift className="w-5 h-5" style={{ color: '#851A1B' }} />
-            </div>
-
+            <FlashSaleBanner />
           </div>
 
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -409,7 +478,7 @@ export default function HomePage() {
                   href="/products"
                   className="inline-flex items-center justify-center px-8 py-3 bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors"
                 >
-                  Shop Black Friday Deals
+                  Shop Now
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Link>
                 <Link
@@ -619,7 +688,7 @@ export default function HomePage() {
                   <Star key={i} className="w-4 h-4 fill-current" style={{ color: '#851A1B' }} />
                 ))}
               </div>
-              <p className="text-lg font-light mb-1" style={{ color: '#851A1B' }}>4.7/5</p>
+              <p className="text-lg font-light mb-1" style={{ color: '#851A1B' }}>4.8/5</p>
               <p className="text-sm text-gray-600">Customer Rating</p>
             </div>
             <div className="text-center">

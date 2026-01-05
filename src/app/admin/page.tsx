@@ -9,7 +9,7 @@ type Product = any
 type ProductType = { id: string; name: string; material: string; printType: string; washingGuide: string }
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'collections' | 'products' | 'product-types' | 'discount-codes' | 'danger'>('collections')
+  const [tab, setTab] = useState<'dashboard' | 'collections' | 'products' | 'product-types' | 'discount-codes' | 'danger'>('dashboard')
   const [collections, setCollections] = useState<Collection[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [productTypes, setProductTypes] = useState<ProductType[]>([])
@@ -29,6 +29,13 @@ export default function AdminPage() {
 
   const [newDiscountCode, setNewDiscountCode] = useState<{ code: string; discountPercent: number }>({ code: '', discountPercent: 20 })
   const [showDiscountCodeModal, setShowDiscountCodeModal] = useState(false)
+  const [stats, setStats] = useState<{
+    websiteVisits: number
+    checkoutVisits: number
+    completedOrders: number
+    estimatedBuyers: number
+    conversionRate: string
+  } | null>(null)
 
   const load = async () => {
     const [c, p, pt, dc] = await Promise.all([
@@ -51,6 +58,23 @@ export default function AdminPage() {
   }
 
   useEffect(() => { load() }, [])
+  
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const res = await fetch('/api/tracking/stats')
+        const data = await res.json()
+        if (data.success) {
+          setStats(data.stats)
+        }
+      } catch (error) {
+        console.error('Error loading stats:', error)
+      }
+    }
+    loadStats()
+    const interval = setInterval(loadStats, 30000) // Refresh every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
 
   const addCollection = async () => {
     if (!newCollection.name || !newCollection.slug) return
@@ -220,12 +244,132 @@ export default function AdminPage() {
       <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
 
       <div className="flex gap-3 mb-6 flex-wrap">
+        <button className={`px-4 py-2 rounded ${tab === 'dashboard' ? 'btn-primary' : 'border'}`} onClick={() => setTab('dashboard')}>Dashboard</button>
         <button className={`px-4 py-2 rounded ${tab === 'collections' ? 'btn-primary' : 'border'}`} onClick={() => setTab('collections')}>Collections</button>
         <button className={`px-4 py-2 rounded ${tab === 'products' ? 'btn-primary' : 'border'}`} onClick={() => setTab('products')}>Products</button>
         <button className={`px-4 py-2 rounded ${tab === 'product-types' ? 'btn-primary' : 'border'}`} onClick={() => setTab('product-types')}>Product Types</button>
         <button className={`px-4 py-2 rounded ${tab === 'discount-codes' ? 'btn-primary' : 'border'}`} onClick={() => setTab('discount-codes')}>Discount Codes</button>
         <button className={`px-4 py-2 rounded ${tab === 'danger' ? 'bg-red-600 text-white' : 'border border-red-600 text-red-600'}`} onClick={() => setTab('danger')}>Danger Zone</button>
       </div>
+
+      {tab === 'dashboard' && (
+        <section className="space-y-6">
+          <h2 className="text-xl font-semibold">Traffic & Analytics</h2>
+          {stats ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="card-elevated p-6">
+                <div className="text-sm text-gray-600 mb-2">Website Visits</div>
+                <div className="text-3xl font-bold" style={{ color: '#851A1B' }}>{stats.websiteVisits.toLocaleString()}</div>
+                <div className="text-xs text-gray-500 mt-2">Total visitors</div>
+              </div>
+              <div className="card-elevated p-6">
+                <div className="text-sm text-gray-600 mb-2">Checkout Visits</div>
+                <div className="text-3xl font-bold" style={{ color: '#851A1B' }}>{stats.checkoutVisits.toLocaleString()}</div>
+                <div className="text-xs text-gray-500 mt-2">Visited checkout page</div>
+              </div>
+              <div className="card-elevated p-6">
+                <div className="text-sm text-gray-600 mb-2">Completed Orders</div>
+                <div className="text-3xl font-bold" style={{ color: '#851A1B' }}>{stats.completedOrders.toLocaleString()}</div>
+                <div className="text-xs text-gray-500 mt-2">Actual purchases</div>
+              </div>
+              <div className="card-elevated p-6">
+                <div className="text-sm text-gray-600 mb-2">Estimated Buyers</div>
+                <div className="text-3xl font-bold" style={{ color: '#851A1B' }}>{stats.estimatedBuyers.toLocaleString()}</div>
+                <div className="text-xs text-gray-500 mt-2">30% of checkout visits</div>
+              </div>
+            </div>
+          ) : (
+            <div className="card-elevated p-6 text-center">Loading stats...</div>
+          )}
+          {stats && (
+            <>
+              <div className="card-elevated p-6">
+                <h3 className="text-lg font-semibold mb-4">Conversion Metrics</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Checkout Conversion Rate</span>
+                    <span className="font-bold" style={{ color: '#851A1B' }}>{stats.conversionRate}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Checkout to Visit Ratio</span>
+                    <span className="font-bold" style={{ color: '#851A1B' }}>
+                      {stats.websiteVisits > 0 ? ((stats.checkoutVisits / stats.websiteVisits) * 100).toFixed(2) : '0.00'}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="card-elevated p-6">
+                <h3 className="text-lg font-semibold mb-4">Clear Tracking Data</h3>
+                <div className="flex gap-3">
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Are you sure you want to clear all website visit logs?')) return
+                      const res = await fetch('/api/tracking/clear', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'website' })
+                      })
+                      if (res.ok) {
+                        setToast({ open: true, message: 'Website visit logs cleared', type: 'success' })
+                        const statsRes = await fetch('/api/tracking/stats')
+                        const data = await statsRes.json()
+                        if (data.success) setStats(data.stats)
+                      } else {
+                        setToast({ open: true, message: 'Failed to clear logs', type: 'error' })
+                      }
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                  >
+                    Clear Website Visits
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Are you sure you want to clear all checkout visit logs?')) return
+                      const res = await fetch('/api/tracking/clear', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'checkout' })
+                      })
+                      if (res.ok) {
+                        setToast({ open: true, message: 'Checkout visit logs cleared', type: 'success' })
+                        const statsRes = await fetch('/api/tracking/stats')
+                        const data = await statsRes.json()
+                        if (data.success) setStats(data.stats)
+                      } else {
+                        setToast({ open: true, message: 'Failed to clear logs', type: 'error' })
+                      }
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                  >
+                    Clear Checkout Visits
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Are you sure you want to clear ALL tracking data? This cannot be undone.')) return
+                      const res = await fetch('/api/tracking/clear', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'all' })
+                      })
+                      if (res.ok) {
+                        setToast({ open: true, message: 'All tracking data cleared', type: 'success' })
+                        const statsRes = await fetch('/api/tracking/stats')
+                        const data = await statsRes.json()
+                        if (data.success) setStats(data.stats)
+                      } else {
+                        setToast({ open: true, message: 'Failed to clear logs', type: 'error' })
+                      }
+                    }}
+                    className="px-4 py-2 border border-red-600 text-red-600 rounded hover:bg-red-50 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {tab === 'collections' && (
         <section className="space-y-4">

@@ -52,7 +52,7 @@ interface Translations {
 class TelegramBot {
   private pollingInterval: NodeJS.Timeout | null = null
   private lastUpdateId: number = 0
-  private isRunning: boolean = false
+  public isRunning: boolean = false
   private userLanguages: Map<string, Language> = new Map() // chatId -> language
 
   constructor() {
@@ -230,7 +230,7 @@ class TelegramBot {
     }
   }
 
-  private async sendMessage(chatId: string, text: string, parseMode: string = 'Markdown'): Promise<boolean> {
+  public async sendMessage(chatId: string, text: string, parseMode: string = 'Markdown'): Promise<boolean> {
     try {
       const config = await this.getConfig()
       const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`
@@ -439,12 +439,15 @@ class TelegramBot {
   private async getUpdates(): Promise<any[]> {
     try {
       const config = await this.getConfig()
-      if (!config.botToken) return []
+      if (!config.botToken) {
+        console.warn('⚠️ No bot token configured for getUpdates')
+        return []
+      }
 
-      const url = `https://api.telegram.org/bot${config.botToken}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=10`
+      const url = `https://api.telegram.org/bot${config.botToken}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=10&allowed_updates=["message","callback_query"]`
       
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
       
       try {
         const response = await fetch(url, {
@@ -456,9 +459,21 @@ class TelegramBot {
 
         if (response.ok) {
           const data = await response.json()
+          if (!data.ok) {
+            console.error('❌ Telegram API error:', data.description)
+            // If webhook is set, we'll get an error - try to remove it
+            if (data.description?.includes('webhook') || data.description?.includes('conflict')) {
+              console.log('🔄 Webhook detected, attempting to remove...')
+              await this.removeWebhook(config.botToken)
+            }
+            return []
+          }
           return data.result || []
+        } else {
+          const errorText = await response.text()
+          console.error('❌ getUpdates failed:', response.status, errorText)
+          return []
         }
-        return []
       } catch (fetchError: any) {
         clearTimeout(timeoutId)
         if (fetchError.name !== 'AbortError') {
@@ -540,10 +555,13 @@ ${t.startBot}
           ],
           [
             { text: '📈 Get Analytics' },
-            { text: '❓ Help' }
+            { text: '📊 Get Stats' }
           ],
           [
             { text: '🔄 Refresh Data' },
+            { text: '❓ Help' }
+          ],
+          [
             { text: lang === 'vi' ? '🇬🇧 English' : '🇻🇳 Tiếng Việt' }
           ]
         ],
@@ -614,6 +632,9 @@ ${t.startBot}
         ],
         resize_keyboard: true
       }, 'HTML')
+    } else if (command === '📊 get stats' || command === 'get stats' || command === '📊 get stats@spamditbot') {
+      // Handle stats button
+      await this.handleGetStats(responseChatId, senderChatId)
     } else if (command === '🔄 refresh data' || command === 'refresh data' || command === '🔄 refresh data@spamditbot') {
       // Handle refresh button
       const lang = this.getUserLanguage(senderChatId)
@@ -646,7 +667,8 @@ ${t.newDataCmd}
 ${t.contactAdmin}`, {
         keyboard: [
           [{ text: '📊 Extract JSON' }],
-          [{ text: '🔄 Refresh Data' }, { text: '❓ Help' }],
+          [{ text: '📊 Get Stats' }, { text: '🔄 Refresh Data' }],
+          [{ text: '❓ Help' }],
           [{ text: lang === 'vi' ? '🇬🇧 English' : '🇻🇳 Tiếng Việt' }]
         ],
         resize_keyboard: true
@@ -859,6 +881,68 @@ ${t.clickButton}`
     await this.handleNewDataWithTime('24 hours', responseChatId, senderChatId, sendNotifications)
   }
 
+  private async handleGetStats(responseChatId: string, senderChatId?: string): Promise<void> {
+    try {
+      const lang = this.getUserLanguage(senderChatId || responseChatId)
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL || 'http://localhost:3000'
+      const apiUrl = `${baseUrl}/api/tracking/stats`
+      
+      const response = await fetch(apiUrl)
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`)
+      }
+
+      const data = await response.json()
+      if (!data.success || !data.stats) {
+        throw new Error('Failed to get stats')
+      }
+
+      const stats = data.stats
+      const messages = {
+        en: `📊 <b>Traffic Statistics</b>\n\n` +
+            `🌐 Current Visitors So Far: <b>${stats.websiteVisits.toLocaleString()}</b>\n` +
+            `🛒 Go to Checkout So Far: <b>${stats.checkoutVisits.toLocaleString()}</b>\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `📈 Estimated People Buy: <b>${stats.estimatedBuyers.toLocaleString()}</b>\n` +
+            `   (${stats.checkoutVisits.toLocaleString()} × 30%)\n\n` +
+            `✅ Completed Orders: <b>${stats.completedOrders.toLocaleString()}</b>\n` +
+            `📊 Conversion Rate: <b>${stats.conversionRate}%</b>`,
+        vi: `📊 <b>Thống kê Lưu lượng</b>\n\n` +
+            `🌐 Lượt truy cập hiện tại: <b>${stats.websiteVisits.toLocaleString()}</b>\n` +
+            `🛒 Vào trang thanh toán: <b>${stats.checkoutVisits.toLocaleString()}</b>\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `📈 Ước tính người sẽ mua: <b>${stats.estimatedBuyers.toLocaleString()}</b>\n` +
+            `   (${stats.checkoutVisits.toLocaleString()} × 30%)\n\n` +
+            `✅ Đơn hàng hoàn thành: <b>${stats.completedOrders.toLocaleString()}</b>\n` +
+            `📊 Tỷ lệ chuyển đổi: <b>${stats.conversionRate}%</b>`
+      }
+
+      await this.sendMessage(responseChatId, messages[lang as 'en' | 'vi'] || messages.vi, 'HTML')
+    } catch (error: any) {
+      console.error('❌ Error getting stats:', error)
+      const lang = this.getUserLanguage(senderChatId || responseChatId)
+      const errorMsg = lang === 'vi' 
+        ? '❌ Lỗi khi lấy thống kê. Vui lòng thử lại.'
+        : '❌ Error getting stats. Please try again.'
+      await this.sendMessage(responseChatId, errorMsg)
+    }
+  }
+
+  private async removeWebhook(botToken: string): Promise<void> {
+    try {
+      const url = `https://api.telegram.org/bot${botToken}/deleteWebhook?drop_pending_updates=true`
+      const response = await fetch(url, { method: 'POST' })
+      const result = await response.json()
+      if (result.ok) {
+        console.log('✅ Webhook removed successfully')
+      } else {
+        console.log('ℹ️ No webhook to remove or already removed')
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not remove webhook (might not be set):', error)
+    }
+  }
+
   public async startPolling(): Promise<void> {
     if (this.isRunning) {
       console.log('⚠️ Telegram bot polling is already running')
@@ -874,6 +958,10 @@ ${t.clickButton}`
     if (!config.chatId) {
       console.warn('⚠️ TELEGRAM_CHAT_ID not configured - bot will respond to all chats and show chat IDs')
     }
+
+    // Remove any existing webhook first (webhooks prevent polling)
+    console.log('🔄 Removing any existing webhook...')
+    await this.removeWebhook(config.botToken)
 
     this.isRunning = true
     console.log('🚀 Starting Telegram bot polling...')

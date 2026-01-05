@@ -10,12 +10,10 @@ const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
 app.prepare().then(async () => {
-  // Start Telegram bot polling (no webhook needed)
-  // Wait for Next.js to be ready, then try to load the bot
+  // Start Telegram bot polling automatically
+  // Wait for Next.js to be ready, then start the bot directly
   setTimeout(async () => {
     try {
-      // For TypeScript files, we need to wait for compilation or use a different approach
-      // Try accessing through Next.js internal API routes
       const botToken = process.env.TELEGRAM_BOT_TOKEN
       const chatId = process.env.TELEGRAM_CHAT_ID
       
@@ -24,20 +22,29 @@ app.prepare().then(async () => {
         return
       }
 
-      // Start the bot by calling an internal API route that handles it
-      // This works because API routes can use TypeScript directly
+      // Try to start the bot directly by importing the module
       try {
-        const response = await fetch(`http://localhost:${port}/api/telegram-bot/start`, {
-          method: 'POST'
-        })
-        if (response.ok) {
-          console.log('✅ Telegram bot polling started via API route')
-        } else {
-          console.warn('⚠️ Could not start bot via API route')
+        // Use dynamic import to load the TypeScript module
+        const { telegramBot } = await import('./src/lib/telegramBot.js')
+        console.log('🚀 Starting Telegram bot from server.js...')
+        await telegramBot.startPolling()
+        console.log('✅ Telegram bot polling started successfully')
+      } catch (importError) {
+        // Fallback: try using the API route if direct import fails
+        console.log('⚠️ Direct import failed, trying API route...')
+        try {
+          const response = await fetch(`http://localhost:${port}/api/telegram-bot/start`, {
+            method: 'POST'
+          })
+          if (response.ok) {
+            console.log('✅ Telegram bot polling started via API route')
+          } else {
+            const errorText = await response.text()
+            console.warn('⚠️ Could not start bot via API route:', errorText)
+          }
+        } catch (fetchError) {
+          console.warn('⚠️ Could not start bot. It will start automatically via instrumentation.ts when using next dev/start')
         }
-      } catch (e) {
-        console.warn('⚠️ Bot will start automatically when API route is accessed')
-        console.warn('⚠️ Or manually trigger: POST /api/telegram-bot/start')
       }
     } catch (error) {
       console.warn('⚠️ Could not initialize Telegram bot:', error.message)

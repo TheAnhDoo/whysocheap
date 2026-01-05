@@ -21,10 +21,16 @@ export async function GET() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN
   const chatId = process.env.TELEGRAM_CHAT_ID
   
+  // Check if bot is running
+  const { telegramBot } = await import('@/lib/telegramBot')
+  const isRunning = telegramBot.isRunning || false
+  
   return NextResponse.json({
     configured: !!(botToken && chatId),
     tokenLength: botToken?.length || 0,
-    chatId: chatId ? 'set' : 'missing'
+    chatId: chatId ? 'set' : 'missing',
+    isRunning,
+    message: isRunning ? 'Bot is running and polling for commands' : 'Bot is not running. Call POST to start it.'
   })
 }
 

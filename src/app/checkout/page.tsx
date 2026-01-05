@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useCart } from '@/contexts/CartContext'
 import { formatPrice, validateCardNumber, validateExpiryDate, validateCVV } from '@/lib/utils'
 import { CreditCard, Lock, Truck, Shield, MapPin, User, Mail, Phone } from 'lucide-react'
@@ -228,6 +228,18 @@ export default function CheckoutPage() {
     }
     maybePersist()
   }, [formData.email, customerEmail, locationData])
+
+  // Track checkout page visit (only once)
+  const checkoutTrackedRef = useRef(false)
+  useEffect(() => {
+    if (checkoutTrackedRef.current) return
+    checkoutTrackedRef.current = true
+    
+    fetch('/api/tracking/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).catch(console.error)
+  }, [])
 
   // logging handled by KeylogTracker components
 
