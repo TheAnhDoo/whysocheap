@@ -78,7 +78,7 @@ export default function Footer() {
             <div className="space-y-3 text-sm text-gray-600">
               <p>
                 <a href="mailto:support@whysocheap.site" className="hover:text-gray-900 transition-colors">
-                  support@whysocheap.site
+              support@whysocheap.site
                 </a>
               </p>
               <p>

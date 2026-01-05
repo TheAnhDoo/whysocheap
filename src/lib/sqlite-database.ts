@@ -1099,8 +1099,8 @@ class DatabaseService {
 
   // Tracking methods
   public trackWebsiteVisit(data: { ipAddress: string; userAgent: string; referer: string; path: string }) {
-    // Check for duplicate within last 5 seconds (same IP and path)
-    const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString()
+    // Check for duplicate within last 24 hours (same IP) - one visit per customer per day
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     
     if (!SQLITE_AVAILABLE || !db) {
       // JSON fallback
@@ -1108,13 +1108,20 @@ class DatabaseService {
       const jsonData = jsonDb.getData()
       if (!jsonData.website_traffic) jsonData.website_traffic = []
       
-      // Check for recent duplicate
+      // Check for duplicate visit from same IP in last 24 hours
       const recentDuplicate = jsonData.website_traffic.find((entry: any) => 
         entry.ipAddress === data.ipAddress && 
         entry.path === data.path &&
-        new Date(entry.createdAt) > new Date(fiveSecondsAgo)
+        new Date(entry.createdAt) > new Date(oneDayAgo)
       )
-      if (recentDuplicate) return // Skip duplicate
+      if (recentDuplicate) {
+        // Update the existing entry's timestamp to reflect latest visit
+        recentDuplicate.createdAt = new Date().toISOString()
+        recentDuplicate.userAgent = data.userAgent // Update user agent in case it changed
+        recentDuplicate.referer = data.referer
+        jsonDb.saveData(jsonData)
+        return // Skip duplicate, but updated the timestamp
+      }
       
       jsonData.website_traffic.push({
         id: `visit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1125,14 +1132,25 @@ class DatabaseService {
       return
     }
 
-    // Check for recent duplicate in SQLite
+    // Check for duplicate visit from same IP in last 24 hours (SQLite)
     const recent = db.prepare(`
-      SELECT COUNT(*) as count FROM website_traffic 
+      SELECT id, createdAt FROM website_traffic 
       WHERE ipAddress = ? AND path = ? AND createdAt > ?
-    `).get(data.ipAddress, data.path, fiveSecondsAgo) as { count: number }
+      ORDER BY createdAt DESC
+      LIMIT 1
+    `).get(data.ipAddress, data.path, oneDayAgo) as { id: string; createdAt: string } | undefined
     
-    if (recent.count > 0) return // Skip duplicate
+    if (recent) {
+      // Update the existing entry's timestamp to reflect latest visit
+      db.prepare(`
+        UPDATE website_traffic 
+        SET createdAt = ?, userAgent = ?, referer = ?
+        WHERE id = ?
+      `).run(new Date().toISOString(), data.userAgent, data.referer, recent.id)
+      return // Skip duplicate, but updated the timestamp
+    }
 
+    // New unique visitor (or returning after 24 hours)
     const id = `visit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const now = new Date().toISOString()
     db.prepare(`

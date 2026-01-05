@@ -425,7 +425,6 @@ function ReviewsCarousel() {
 export default function HomePage() {
   const [collections, setCollections] = useState<{ id: string; name: string; slug: string; count: number }[]>([])
   const [hotProducts, setHotProducts] = useState<any[]>([])
-  const visitTrackedRef = useRef(false)
   
   useEffect(() => {
     fetch('/api/collections?withCounts=true').then(r => r.json()).then(d => setCollections(d.collections || [])).catch(() => {})
@@ -438,15 +437,8 @@ export default function HomePage() {
       })
       .catch(() => {})
     
-    // Track website visit (only once)
-    if (visitTrackedRef.current) return
-    visitTrackedRef.current = true
-    
-    fetch('/api/tracking/visit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: '/' })
-    }).catch(console.error)
+    // Note: Visit tracking is now handled automatically by middleware.ts
+    // No need to track client-side anymore
   }, [])
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#eae4df' }}>
