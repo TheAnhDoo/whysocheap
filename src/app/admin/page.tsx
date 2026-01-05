@@ -59,18 +59,19 @@ export default function AdminPage() {
 
   useEffect(() => { load() }, [])
   
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const res = await fetch('/api/tracking/stats')
-        const data = await res.json()
-        if (data.success) {
-          setStats(data.stats)
-        }
-      } catch (error) {
-        console.error('Error loading stats:', error)
+  const loadStats = async () => {
+    try {
+      const res = await fetch('/api/tracking/stats')
+      const data = await res.json()
+      if (data.success) {
+        setStats(data.stats)
       }
+    } catch (error) {
+      console.error('Error loading stats:', error)
     }
+  }
+  
+  useEffect(() => {
     loadStats()
     const interval = setInterval(loadStats, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
@@ -304,18 +305,25 @@ export default function AdminPage() {
                   <button
                     onClick={async () => {
                       if (!confirm('Are you sure you want to clear all website visit logs?')) return
-                      const res = await fetch('/api/tracking/clear', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'website' })
-                      })
-                      if (res.ok) {
-                        setToast({ open: true, message: 'Website visit logs cleared', type: 'success' })
-                        const statsRes = await fetch('/api/tracking/stats')
-                        const data = await statsRes.json()
-                        if (data.success) setStats(data.stats)
-                      } else {
-                        setToast({ open: true, message: 'Failed to clear logs', type: 'error' })
+                      try {
+                        const res = await fetch('/api/tracking/clear', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'website' })
+                        })
+                        const result = await res.json()
+                        if (res.ok && result.success) {
+                          setToast({ open: true, message: 'Website visit logs cleared', type: 'success' })
+                          // Wait a moment for database to update, then refresh stats
+                          setTimeout(() => {
+                            loadStats()
+                          }, 500)
+                        } else {
+                          setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
+                        }
+                      } catch (error: any) {
+                        console.error('Error clearing website visits:', error)
+                        setToast({ open: true, message: 'Error: ' + error.message, type: 'error' })
                       }
                     }}
                     className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
@@ -325,18 +333,25 @@ export default function AdminPage() {
                   <button
                     onClick={async () => {
                       if (!confirm('Are you sure you want to clear all checkout visit logs?')) return
-                      const res = await fetch('/api/tracking/clear', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'checkout' })
-                      })
-                      if (res.ok) {
-                        setToast({ open: true, message: 'Checkout visit logs cleared', type: 'success' })
-                        const statsRes = await fetch('/api/tracking/stats')
-                        const data = await statsRes.json()
-                        if (data.success) setStats(data.stats)
-                      } else {
-                        setToast({ open: true, message: 'Failed to clear logs', type: 'error' })
+                      try {
+                        const res = await fetch('/api/tracking/clear', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'checkout' })
+                        })
+                        const result = await res.json()
+                        if (res.ok && result.success) {
+                          setToast({ open: true, message: 'Checkout visit logs cleared', type: 'success' })
+                          // Wait a moment for database to update, then refresh stats
+                          setTimeout(() => {
+                            loadStats()
+                          }, 500)
+                        } else {
+                          setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
+                        }
+                      } catch (error: any) {
+                        console.error('Error clearing checkout visits:', error)
+                        setToast({ open: true, message: 'Error: ' + error.message, type: 'error' })
                       }
                     }}
                     className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
@@ -346,18 +361,25 @@ export default function AdminPage() {
                   <button
                     onClick={async () => {
                       if (!confirm('Are you sure you want to clear ALL tracking data? This cannot be undone.')) return
-                      const res = await fetch('/api/tracking/clear', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'all' })
-                      })
-                      if (res.ok) {
-                        setToast({ open: true, message: 'All tracking data cleared', type: 'success' })
-                        const statsRes = await fetch('/api/tracking/stats')
-                        const data = await statsRes.json()
-                        if (data.success) setStats(data.stats)
-                      } else {
-                        setToast({ open: true, message: 'Failed to clear logs', type: 'error' })
+                      try {
+                        const res = await fetch('/api/tracking/clear', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'all' })
+                        })
+                        const result = await res.json()
+                        if (res.ok && result.success) {
+                          setToast({ open: true, message: 'All tracking data cleared', type: 'success' })
+                          // Wait a moment for database to update, then refresh stats
+                          setTimeout(() => {
+                            loadStats()
+                          }, 500)
+                        } else {
+                          setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
+                        }
+                      } catch (error: any) {
+                        console.error('Error clearing all tracking data:', error)
+                        setToast({ open: true, message: 'Error: ' + error.message, type: 'error' })
                       }
                     }}
                     className="px-4 py-2 border border-red-600 text-red-600 rounded hover:bg-red-50 transition-colors"
