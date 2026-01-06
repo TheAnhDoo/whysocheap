@@ -884,20 +884,41 @@ ${t.clickButton}`
   private async handleGetStats(responseChatId: string, senderChatId?: string): Promise<void> {
     try {
       const lang = this.getUserLanguage(senderChatId || responseChatId)
+      // Use the actual server URL - prefer NEXT_PUBLIC_BASE_URL for production
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL || 'http://localhost:3000'
-      const apiUrl = `${baseUrl}/api/tracking/stats`
+      // Add timestamp to bust cache
+      const apiUrl = `${baseUrl}/api/tracking/stats?t=${Date.now()}`
       
-      const response = await fetch(apiUrl)
+      console.log('📊 Telegram bot fetching stats from:', apiUrl)
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        // Force fresh request
+        next: { revalidate: 0 }
+      } as any)
+      
       if (!response.ok) {
+        console.error(`❌ Stats API returned ${response.status}`)
         throw new Error(`API returned ${response.status}`)
       }
 
       const data = await response.json()
+      console.log('📊 Telegram bot received stats data:', data)
+      console.log('📊 Response timestamp:', data.timestamp, 'Current time:', Date.now())
+      
       if (!data.success || !data.stats) {
+        console.error('❌ Stats data invalid:', data)
         throw new Error('Failed to get stats')
       }
 
       const stats = data.stats
+      console.log('📊 Telegram bot using stats:', stats)
       const messages = {
         en: `📊 <b>Traffic Statistics</b>\n\n` +
             `🌐 Current Visitors So Far: <b>${stats.websiteVisits.toLocaleString()}</b>\n` +

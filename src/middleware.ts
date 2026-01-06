@@ -1,27 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Only track homepage visits
-  if (request.nextUrl.pathname === '/') {
-    // Track visit asynchronously (don't block the request)
-    // Use a fire-and-forget approach
-    fetch(`${request.nextUrl.origin}/api/tracking/visit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Forward important headers for IP detection
-        'x-forwarded-for': request.headers.get('x-forwarded-for') || '',
-        'x-real-ip': request.headers.get('x-real-ip') || '',
-        'cf-connecting-ip': request.headers.get('cf-connecting-ip') || '',
-        'user-agent': request.headers.get('user-agent') || '',
-        'referer': request.headers.get('referer') || request.headers.get('referrer') || '',
-      },
-      body: JSON.stringify({ path: '/' })
-    }).catch(() => {
-      // Silently fail - don't block the request
-    })
-  }
-
+  // Note: Tracking is now handled client-side for better reliability
+  // Middleware in Edge Runtime has limitations with database access
+  // Client-side tracking ensures it works in all environments
+  
   return NextResponse.next()
 }
 

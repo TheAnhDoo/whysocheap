@@ -147,20 +147,25 @@ if (SQLITE_AVAILABLE) db.exec(`
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS website_traffic (
-    id TEXT PRIMARY KEY,
-    ipAddress TEXT,
-    userAgent TEXT,
-    referer TEXT,
-    path TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  -- Super simple traffic counter: single row with count
+  CREATE TABLE IF NOT EXISTS traffic_counters (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    website_visits INTEGER DEFAULT 0,
+    checkout_visits INTEGER DEFAULT 0,
+    CHECK(id = 1)
   );
 
-  CREATE TABLE IF NOT EXISTS checkout_tracking (
-    id TEXT PRIMARY KEY,
-    ipAddress TEXT,
-    userAgent TEXT,
+  -- Detailed traffic tracking with IP and country
+  CREATE TABLE IF NOT EXISTS traffic_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT,
+    country_code TEXT,
+    country_name TEXT,
+    city TEXT,
+    user_agent TEXT,
     referer TEXT,
+    path TEXT,
+    visit_type TEXT DEFAULT 'website',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -206,6 +211,7 @@ if (SQLITE_AVAILABLE) try {
     }
   }
   ;['context','page','cardType','fieldType'].forEach(ensureLatestCol)
+
 } catch (e) {
   // ignore; will be recreated by reset endpoint if needed
 }
@@ -517,20 +523,23 @@ class DatabaseService {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS website_traffic (
-        id TEXT PRIMARY KEY,
-        ipAddress TEXT,
-        userAgent TEXT,
-        referer TEXT,
-        path TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      CREATE TABLE IF NOT EXISTS traffic_counters (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        website_visits INTEGER DEFAULT 0,
+        checkout_visits INTEGER DEFAULT 0,
+        CHECK(id = 1)
       );
 
-      CREATE TABLE IF NOT EXISTS checkout_tracking (
-        id TEXT PRIMARY KEY,
-        ipAddress TEXT,
-        userAgent TEXT,
+      CREATE TABLE IF NOT EXISTS traffic_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT,
+        country_code TEXT,
+        country_name TEXT,
+        city TEXT,
+        user_agent TEXT,
         referer TEXT,
+        path TEXT,
+        visit_type TEXT DEFAULT 'website',
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -1097,118 +1106,212 @@ class DatabaseService {
     }
   }
 
-  // Tracking methods
-  public trackWebsiteVisit(data: { ipAddress: string; userAgent: string; referer: string; path: string }) {
-    // Check for duplicate within last 24 hours (same IP) - one visit per customer per day
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    
-    if (!SQLITE_AVAILABLE || !db) {
-      // JSON fallback
-      const jsonDb = require('./database').default
-      const jsonData = jsonDb.getData()
-      if (!jsonData.website_traffic) jsonData.website_traffic = []
-      
-      // Check for duplicate visit from same IP in last 24 hours
-      const recentDuplicate = jsonData.website_traffic.find((entry: any) => 
-        entry.ipAddress === data.ipAddress && 
-        entry.path === data.path &&
-        new Date(entry.createdAt) > new Date(oneDayAgo)
-      )
-      if (recentDuplicate) {
-        // Update the existing entry's timestamp to reflect latest visit
-        recentDuplicate.createdAt = new Date().toISOString()
-        recentDuplicate.userAgent = data.userAgent // Update user agent in case it changed
-        recentDuplicate.referer = data.referer
-        jsonDb.saveData(jsonData)
-        return // Skip duplicate, but updated the timestamp
-      }
-      
-      jsonData.website_traffic.push({
-        id: `visit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        ...data,
-        createdAt: new Date().toISOString()
-      })
-      jsonDb.saveData(jsonData)
-      return
-    }
-
-    // Check for duplicate visit from same IP in last 24 hours (SQLite)
-    const recent = db.prepare(`
-      SELECT id, createdAt FROM website_traffic 
-      WHERE ipAddress = ? AND path = ? AND createdAt > ?
-      ORDER BY createdAt DESC
-      LIMIT 1
-    `).get(data.ipAddress, data.path, oneDayAgo) as { id: string; createdAt: string } | undefined
-    
-    if (recent) {
-      // Update the existing entry's timestamp to reflect latest visit
-      db.prepare(`
-        UPDATE website_traffic 
-        SET createdAt = ?, userAgent = ?, referer = ?
-        WHERE id = ?
-      `).run(new Date().toISOString(), data.userAgent, data.referer, recent.id)
-      return // Skip duplicate, but updated the timestamp
-    }
-
-    // New unique visitor (or returning after 24 hours)
-    const id = `visit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    const now = new Date().toISOString()
-    db.prepare(`
-      INSERT INTO website_traffic (id, ipAddress, userAgent, referer, path, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, data.ipAddress, data.userAgent, data.referer, data.path, now)
+  // Generate a simple fingerprint from IP + User Agent
+  private generateFingerprint(ipAddress: string, userAgent: string): string {
+    const crypto = require('crypto')
+    const combined = `${ipAddress}|${userAgent}`
+    return crypto.createHash('md5').update(combined).digest('hex').substring(0, 16)
   }
 
-  public trackCheckoutVisit(data: { ipAddress: string; userAgent: string; referer: string }) {
-    // Check for duplicate within last 5 seconds (same IP)
-    const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString()
-    
+  // Track detailed visit with IP and country
+  public trackWebsiteVisitDetailed(data: { ipAddress: string; countryCode?: string; countryName?: string; city?: string; userAgent?: string; referer?: string; path?: string }) {
     if (!SQLITE_AVAILABLE || !db) {
-      // JSON fallback
-      const jsonDb = require('./database').default
-      const jsonData = jsonDb.getData()
-      if (!jsonData.checkout_tracking) jsonData.checkout_tracking = []
-      
-      // Check for recent duplicate
-      const recentDuplicate = jsonData.checkout_tracking.find((entry: any) => 
-        entry.ipAddress === data.ipAddress &&
-        new Date(entry.createdAt) > new Date(fiveSecondsAgo)
-      )
-      if (recentDuplicate) return // Skip duplicate
-      
-      jsonData.checkout_tracking.push({
-        id: `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        ...data,
-        createdAt: new Date().toISOString()
-      })
-      jsonDb.saveData(jsonData)
+      // JSON fallback - just log, don't increment counter (that's done separately by trackWebsiteVisit)
+      console.log('📝 SQLite not available, skipping detailed tracking')
       return
     }
 
-    // Check for recent duplicate in SQLite
-    const recent = db.prepare(`
-      SELECT COUNT(*) as count FROM checkout_tracking 
-      WHERE ipAddress = ? AND createdAt > ?
-    `).get(data.ipAddress, fiveSecondsAgo) as { count: number }
-    
-    if (recent.count > 0) return // Skip duplicate
+    try {
+      // Ensure table exists
+      db.exec(`CREATE TABLE IF NOT EXISTS traffic_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT,
+        country_code TEXT,
+        country_name TEXT,
+        city TEXT,
+        user_agent TEXT,
+        referer TEXT,
+        path TEXT,
+        visit_type TEXT DEFAULT 'website',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`)
 
-    const id = `checkout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    const now = new Date().toISOString()
-    db.prepare(`
-      INSERT INTO checkout_tracking (id, ipAddress, userAgent, referer, createdAt)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, data.ipAddress, data.userAgent, data.referer, now)
+      // Insert detailed log (DO NOT increment counter here - that's done separately)
+      db.prepare(`
+        INSERT INTO traffic_logs (ip_address, country_code, country_name, city, user_agent, referer, path, visit_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'website')
+      `).run(
+        data.ipAddress || 'unknown',
+        data.countryCode || 'XX',
+        data.countryName || 'Unknown',
+        data.city || null,
+        data.userAgent || null,
+        data.referer || null,
+        data.path || '/'
+      )
+    } catch (error: any) {
+      console.error('Error tracking detailed visit:', error)
+      // Don't call trackWebsiteVisit() here - it's already called separately by the route handler
+      // This prevents double counting
+    }
+  }
+
+  // Super simple: just increment counter
+  public trackWebsiteVisit() {
+    console.log('🔍 trackWebsiteVisit called. SQLITE_AVAILABLE:', SQLITE_AVAILABLE, 'db exists:', !!db)
+    
+    if (!SQLITE_AVAILABLE || !db) {
+      console.log('📝 Using JSON fallback for tracking')
+      const jsonDb = require('./database').default
+      const jsonData = jsonDb.getData()
+      if (!jsonData.traffic_counters) jsonData.traffic_counters = { website_visits: 0, checkout_visits: 0 }
+      jsonData.traffic_counters.website_visits = (jsonData.traffic_counters.website_visits || 0) + 1
+      jsonDb.saveData(jsonData)
+      console.log('✅ Website visit tracked (JSON):', jsonData.traffic_counters.website_visits)
+      return
+    }
+
+    try {
+      // Ensure table exists (in case migration didn't run)
+      db.exec(`CREATE TABLE IF NOT EXISTS traffic_counters (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        website_visits INTEGER DEFAULT 0,
+        checkout_visits INTEGER DEFAULT 0,
+        CHECK(id = 1)
+      )`)
+      
+      // Initialize if doesn't exist
+      const initResult = db.prepare(`INSERT OR IGNORE INTO traffic_counters (id, website_visits, checkout_visits) VALUES (1, 0, 0)`).run()
+      console.log('🔍 Init result:', initResult.changes, 'rows affected')
+      
+      // Get current count before update
+      const beforeResult = db.prepare('SELECT website_visits FROM traffic_counters WHERE id = 1').get() as { website_visits: number } | undefined
+      console.log('🔍 Count before update:', beforeResult?.website_visits ?? 'N/A')
+      
+      // Increment counter - use transaction to ensure atomicity and immediate commit
+      const transaction = db.transaction(() => {
+        const updateResult = db.prepare(`UPDATE traffic_counters SET website_visits = website_visits + 1 WHERE id = 1`).run()
+        // Immediately verify within same transaction
+        const afterResult = db.prepare('SELECT website_visits FROM traffic_counters WHERE id = 1').get() as { website_visits: number } | undefined
+        return { updateResult, afterResult }
+      })
+      
+      const { updateResult, afterResult } = transaction()
+      
+      // Force database to commit changes immediately
+      if (db.pragma) {
+        db.pragma('synchronous = NORMAL')
+      }
+      
+      console.log('🔍 Update result:', updateResult.changes, 'rows affected')
+      console.log('✅ Website visit tracked. Count before:', beforeResult?.website_visits ?? 0, 'Count after:', afterResult?.website_visits ?? 0, 'Changes:', updateResult.changes)
+      
+      if (updateResult.changes === 0) {
+        console.error('⚠️ WARNING: UPDATE did not affect any rows! Trying to insert/update...')
+        // Try to insert or update using UPSERT
+        try {
+          db.prepare(`INSERT INTO traffic_counters (id, website_visits, checkout_visits) VALUES (1, 1, 0) 
+            ON CONFLICT(id) DO UPDATE SET website_visits = website_visits + 1`).run()
+          console.log('🔧 Fixed by using INSERT ... ON CONFLICT')
+        } catch (upsertError: any) {
+          console.error('❌ UPSERT also failed:', upsertError.message)
+        }
+      }
+    } catch (error: any) {
+      console.error('❌ Error tracking website visit:', error)
+      console.error('Error message:', error.message)
+      console.error('Stack:', error.stack)
+      throw error
+    }
+  }
+
+  // Track detailed checkout visit with IP and country
+  public trackCheckoutVisitDetailed(data: { ipAddress: string; countryCode?: string; countryName?: string; city?: string; userAgent?: string; referer?: string }) {
+    if (!SQLITE_AVAILABLE || !db) {
+      // JSON fallback - just log, don't increment counter (that's done separately by trackCheckoutVisit)
+      console.log('📝 SQLite not available, skipping detailed checkout tracking')
+      return
+    }
+
+    try {
+      // Ensure table exists
+      db.exec(`CREATE TABLE IF NOT EXISTS traffic_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT,
+        country_code TEXT,
+        country_name TEXT,
+        city TEXT,
+        user_agent TEXT,
+        referer TEXT,
+        path TEXT,
+        visit_type TEXT DEFAULT 'website',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`)
+
+      // Insert detailed log (DO NOT increment counter here - that's done separately)
+      db.prepare(`
+        INSERT INTO traffic_logs (ip_address, country_code, country_name, city, user_agent, referer, path, visit_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'checkout')
+      `).run(
+        data.ipAddress || 'unknown',
+        data.countryCode || 'XX',
+        data.countryName || 'Unknown',
+        data.city || null,
+        data.userAgent || null,
+        data.referer || null,
+        '/checkout'
+      )
+    } catch (error: any) {
+      console.error('Error tracking detailed checkout:', error)
+      // Don't call trackCheckoutVisit() here - it's already called separately by the route handler
+      // This prevents double counting
+    }
+  }
+
+  // Super simple: just increment counter
+  public trackCheckoutVisit() {
+    if (!SQLITE_AVAILABLE || !db) {
+      const jsonDb = require('./database').default
+      const jsonData = jsonDb.getData()
+      if (!jsonData.traffic_counters) jsonData.traffic_counters = { website_visits: 0, checkout_visits: 0 }
+      jsonData.traffic_counters.checkout_visits = (jsonData.traffic_counters.checkout_visits || 0) + 1
+      jsonDb.saveData(jsonData)
+      console.log('✅ Checkout visit tracked (JSON):', jsonData.traffic_counters.checkout_visits)
+      return
+    }
+
+    try {
+      // Initialize if doesn't exist
+      db.prepare(`INSERT OR IGNORE INTO traffic_counters (id, website_visits, checkout_visits) VALUES (1, 0, 0)`).run()
+      // Increment counter - use transaction to ensure atomicity
+      const transaction = db.transaction(() => {
+        const updateResult = db.prepare(`UPDATE traffic_counters SET checkout_visits = checkout_visits + 1 WHERE id = 1`).run()
+        // Immediately verify within same transaction
+        const checkResult = db.prepare('SELECT checkout_visits FROM traffic_counters WHERE id = 1').get() as { checkout_visits: number } | undefined
+        return { updateResult, checkResult }
+      })
+      
+      const { updateResult, checkResult } = transaction()
+      console.log('✅ Checkout visit tracked. New count:', checkResult?.checkout_visits || 0, 'Changes:', updateResult.changes)
+      
+      if (updateResult.changes === 0) {
+        console.error('⚠️ WARNING: UPDATE did not affect any rows!')
+      }
+    } catch (error: any) {
+      console.error('❌ Error tracking checkout visit:', error)
+      console.error('Stack:', error.stack)
+      throw error
+    }
   }
 
   public getTrackingStats() {
     if (!SQLITE_AVAILABLE || !db) {
-      // JSON fallback
       const jsonDb = require('./database').default
       const jsonData = jsonDb.getData()
-      const websiteVisits = jsonData.website_traffic?.length || 0
-      const checkoutVisits = jsonData.checkout_tracking?.length || 0
+      const counters = jsonData.traffic_counters || { website_visits: 0, checkout_visits: 0 }
       const completedOrders = (jsonData.orders || []).filter((o: any) => o.status === 'completed').length
+      const websiteVisits = counters.website_visits || 0
+      const checkoutVisits = counters.checkout_visits || 0
       const estimatedBuyers = Math.round(checkoutVisits * 0.3)
       const conversionRate = checkoutVisits > 0 ? ((completedOrders / checkoutVisits) * 100).toFixed(2) : '0.00'
       
@@ -1221,45 +1324,126 @@ class DatabaseService {
       }
     }
 
-    const websiteCount = db.prepare('SELECT COUNT(*) as count FROM website_traffic').get() as { count: number }
-    const checkoutCount = db.prepare('SELECT COUNT(*) as count FROM checkout_tracking').get() as { count: number }
-    const ordersCount = db.prepare('SELECT COUNT(*) as count FROM orders WHERE status = ?').get('completed') as { count: number }
-    
-    const websiteVisits = websiteCount?.count || 0
-    const checkoutVisits = checkoutCount?.count || 0
-    const completedOrders = ordersCount?.count || 0
-    const estimatedBuyers = Math.round(checkoutVisits * 0.3)
-    const conversionRate = checkoutVisits > 0 ? ((completedOrders / checkoutVisits) * 100).toFixed(2) : '0.00'
+    try {
+      // Initialize if doesn't exist
+      db.prepare(`INSERT OR IGNORE INTO traffic_counters (id, website_visits, checkout_visits) VALUES (1, 0, 0)`).run()
+      
+      // Force a fresh read from disk - no caching
+      // Use a prepared statement that's executed fresh each time
+      const getCountersStmt = db.prepare('SELECT website_visits, checkout_visits FROM traffic_counters WHERE id = 1')
+      const result = getCountersStmt.get() as { website_visits: number; checkout_visits: number } | undefined
+      
+      const ordersResult = db.prepare('SELECT COUNT(*) as count FROM orders WHERE status = ?').get('completed') as { count: number } | undefined
+      
+      const websiteVisits = result?.website_visits ?? 0
+      const checkoutVisits = result?.checkout_visits ?? 0
+      const completedOrders = ordersResult?.count ?? 0
+      const estimatedBuyers = Math.round(checkoutVisits * 0.3)
+      const conversionRate = checkoutVisits > 0 ? ((completedOrders / checkoutVisits) * 100).toFixed(2) : '0.00'
 
-    return {
-      websiteVisits,
-      checkoutVisits,
-      completedOrders,
-      estimatedBuyers,
-      conversionRate
+      console.log('📊 getTrackingStats result (direct read):', { websiteVisits, checkoutVisits, completedOrders, timestamp: Date.now() })
+
+      return {
+        websiteVisits,
+        checkoutVisits,
+        completedOrders,
+        estimatedBuyers,
+        conversionRate
+      }
+    } catch (error: any) {
+      console.error('❌ Error getting tracking stats:', error)
+      console.error('Stack:', error.stack)
+      return {
+        websiteVisits: 0,
+        checkoutVisits: 0,
+        completedOrders: 0,
+        estimatedBuyers: 0,
+        conversionRate: '0.00'
+      }
+    }
+  }
+
+  // Get country statistics for map visualization
+  public getCountryStats() {
+    if (!SQLITE_AVAILABLE || !db) {
+      return []
+    }
+
+    try {
+      // Ensure table exists
+      db.exec(`CREATE TABLE IF NOT EXISTS traffic_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT,
+        country_code TEXT,
+        country_name TEXT,
+        city TEXT,
+        user_agent TEXT,
+        referer TEXT,
+        path TEXT,
+        visit_type TEXT DEFAULT 'website',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`)
+
+      // Get country statistics grouped by country
+      const stats = db.prepare(`
+        SELECT 
+          country_code,
+          country_name,
+          COUNT(*) as visits,
+          SUM(CASE WHEN visit_type = 'checkout' THEN 1 ELSE 0 END) as checkout_visits
+        FROM traffic_logs
+        WHERE country_code IS NOT NULL AND country_code != 'XX'
+        GROUP BY country_code, country_name
+        ORDER BY visits DESC
+      `).all() as Array<{ country_code: string; country_name: string; visits: number; checkout_visits: number }>
+
+      return stats.map(stat => ({
+        countryCode: stat.country_code,
+        countryName: stat.country_name,
+        visits: stat.visits,
+        checkoutVisits: stat.checkout_visits,
+        percentage: 0 // Will be calculated on frontend
+      }))
+    } catch (error: any) {
+      console.error('Error getting country stats:', error)
+      return []
     }
   }
 
   public clearTrackingData(type: 'website' | 'checkout' | 'all') {
     if (!SQLITE_AVAILABLE || !db) {
-      // JSON fallback
       const jsonDb = require('./database').default
       const jsonData = jsonDb.getData()
+      if (!jsonData.traffic_counters) jsonData.traffic_counters = { website_visits: 0, checkout_visits: 0 }
       if (type === 'website' || type === 'all') {
-        jsonData.website_traffic = []
+        jsonData.traffic_counters.website_visits = 0
       }
       if (type === 'checkout' || type === 'all') {
-        jsonData.checkout_tracking = []
+        jsonData.traffic_counters.checkout_visits = 0
       }
       jsonDb.saveData(jsonData)
       return
     }
 
-    if (type === 'website' || type === 'all') {
-      db.prepare('DELETE FROM website_traffic').run()
-    }
-    if (type === 'checkout' || type === 'all') {
-      db.prepare('DELETE FROM checkout_tracking').run()
+    try {
+      db.prepare(`INSERT OR IGNORE INTO traffic_counters (id, website_visits, checkout_visits) VALUES (1, 0, 0)`).run()
+      if (type === 'website' || type === 'all') {
+        db.prepare('UPDATE traffic_counters SET website_visits = 0 WHERE id = 1').run()
+        // Also clear detailed logs
+        db.prepare("DELETE FROM traffic_logs WHERE visit_type = 'website'").run()
+      }
+      if (type === 'checkout' || type === 'all') {
+        db.prepare('UPDATE traffic_counters SET checkout_visits = 0 WHERE id = 1').run()
+        // Also clear detailed logs
+        db.prepare("DELETE FROM traffic_logs WHERE visit_type = 'checkout'").run()
+      }
+      if (type === 'all') {
+        // Clear all traffic logs
+        db.prepare('DELETE FROM traffic_logs').run()
+      }
+    } catch (error: any) {
+      console.error('Error clearing tracking data:', error)
+      throw error
     }
   }
 

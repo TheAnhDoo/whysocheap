@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Toast from '@/components/Toast'
 import Modal from '@/components/Modal'
+import TrafficMap from '@/components/TrafficMap'
+import TrafficCharts from '@/components/TrafficCharts'
 
 type Collection = { id: string; name: string; slug: string; image?: string; description?: string; featured?: boolean; count?: number }
 type Product = any
@@ -36,6 +38,7 @@ export default function AdminPage() {
     estimatedBuyers: number
     conversionRate: string
   } | null>(null)
+  const [statsKey, setStatsKey] = useState(0) // Force re-render key
 
   const load = async () => {
     const [c, p, pt, dc] = await Promise.all([
@@ -61,23 +64,34 @@ export default function AdminPage() {
   
   const loadStats = async () => {
     try {
-      const res = await fetch('/api/tracking/stats', {
+      // Add timestamp to bust cache
+      const res = await fetch(`/api/tracking/stats?t=${Date.now()}`, {
+        method: 'GET',
         cache: 'no-store', // Prevent caching
         headers: {
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       })
       const data = await res.json()
-      console.log('📊 Stats loaded:', data)
+      console.log('📊 Admin stats loaded:', data)
+      console.log('📊 Response timestamp:', data.timestamp, 'Current time:', Date.now())
       if (data.success && data.stats) {
-        console.log('✅ Setting stats:', data.stats)
-        setStats({
+        const newStats = {
           websiteVisits: data.stats.websiteVisits || 0,
           checkoutVisits: data.stats.checkoutVisits || 0,
           completedOrders: data.stats.completedOrders || 0,
           estimatedBuyers: data.stats.estimatedBuyers || 0,
           conversionRate: data.stats.conversionRate || '0.00'
-        })
+        }
+        console.log('✅ Setting admin stats:', newStats)
+        console.log('📊 Previous stats:', stats)
+        // Create new object reference to ensure React detects change
+        setStats({ ...newStats })
+        // Update key to force re-render if needed
+        setStatsKey((prev: number) => prev + 1)
+        console.log('🔄 Stats state updated, should re-render now')
       } else {
         console.warn('⚠️ Stats response not successful:', data)
       }
@@ -88,7 +102,11 @@ export default function AdminPage() {
   
   useEffect(() => {
     loadStats()
-    const interval = setInterval(loadStats, 30000) // Refresh every 30 seconds
+    // Refresh every 5 seconds for real-time updates
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing stats...')
+      loadStats()
+    }, 5000)
     return () => clearInterval(interval)
   }, [])
 
@@ -270,9 +288,20 @@ export default function AdminPage() {
 
       {tab === 'dashboard' && (
         <section className="space-y-6">
-          <h2 className="text-xl font-semibold">Traffic & Analytics</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Traffic & Analytics</h2>
+            <button
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered')
+                loadStats()
+              }}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm transition-colors"
+            >
+              🔄 Refresh
+            </button>
+          </div>
           {stats ? (
-            <div key={`stats-${stats.websiteVisits}-${stats.checkoutVisits}`} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div key={`stats-${stats.websiteVisits}-${stats.checkoutVisits}-${stats.completedOrders}-${statsKey}`} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="card-elevated p-6">
                 <div className="text-sm text-gray-600 mb-2">Website Visits</div>
                 <div className="text-3xl font-bold" style={{ color: '#851A1B' }}>{stats.websiteVisits.toLocaleString()}</div>
@@ -330,12 +359,20 @@ export default function AdminPage() {
                         console.log('🧹 Clear website result:', result)
                         if (res.ok && result.success) {
                           setToast({ open: true, message: 'Website visit logs cleared', type: 'success' })
-                          // Force immediate stats refresh
-                          await loadStats()
-                          // Also refresh again after a short delay to ensure database is updated
-                          setTimeout(() => {
-                            loadStats()
-                          }, 300)
+                          // Use stats from API response if available, otherwise reload
+                          if (result.stats) {
+                            console.log('✅ Using stats from API response:', result.stats)
+                            setStats({
+                              websiteVisits: result.stats.websiteVisits || 0,
+                              checkoutVisits: result.stats.checkoutVisits || 0,
+                              completedOrders: result.stats.completedOrders || 0,
+                              estimatedBuyers: result.stats.estimatedBuyers || 0,
+                              conversionRate: result.stats.conversionRate || '0.00'
+                            })
+                          } else {
+                            // Fallback: reload stats
+                            await loadStats()
+                          }
                         } else {
                           setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
                         }
@@ -361,12 +398,20 @@ export default function AdminPage() {
                         console.log('🧹 Clear checkout result:', result)
                         if (res.ok && result.success) {
                           setToast({ open: true, message: 'Checkout visit logs cleared', type: 'success' })
-                          // Force immediate stats refresh
-                          await loadStats()
-                          // Also refresh again after a short delay to ensure database is updated
-                          setTimeout(() => {
-                            loadStats()
-                          }, 300)
+                          // Use stats from API response if available, otherwise reload
+                          if (result.stats) {
+                            console.log('✅ Using stats from API response:', result.stats)
+                            setStats({
+                              websiteVisits: result.stats.websiteVisits || 0,
+                              checkoutVisits: result.stats.checkoutVisits || 0,
+                              completedOrders: result.stats.completedOrders || 0,
+                              estimatedBuyers: result.stats.estimatedBuyers || 0,
+                              conversionRate: result.stats.conversionRate || '0.00'
+                            })
+                          } else {
+                            // Fallback: reload stats
+                            await loadStats()
+                          }
                         } else {
                           setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
                         }
@@ -392,12 +437,20 @@ export default function AdminPage() {
                         console.log('🧹 Clear all result:', result)
                         if (res.ok && result.success) {
                           setToast({ open: true, message: 'All tracking data cleared', type: 'success' })
-                          // Force immediate stats refresh
-                          await loadStats()
-                          // Also refresh again after a short delay to ensure database is updated
-                          setTimeout(() => {
-                            loadStats()
-                          }, 300)
+                          // Use stats from API response if available, otherwise reload
+                          if (result.stats) {
+                            console.log('✅ Using stats from API response:', result.stats)
+                            setStats({
+                              websiteVisits: result.stats.websiteVisits || 0,
+                              checkoutVisits: result.stats.checkoutVisits || 0,
+                              completedOrders: result.stats.completedOrders || 0,
+                              estimatedBuyers: result.stats.estimatedBuyers || 0,
+                              conversionRate: result.stats.conversionRate || '0.00'
+                            })
+                          } else {
+                            // Fallback: reload stats
+                            await loadStats()
+                          }
                         } else {
                           setToast({ open: true, message: result.error || 'Failed to clear logs', type: 'error' })
                         }
@@ -414,6 +467,12 @@ export default function AdminPage() {
               </div>
             </>
           )}
+          
+          {/* Traffic Charts Section */}
+          {stats && <TrafficCharts stats={stats} />}
+          
+          {/* Traffic Map Section */}
+          <TrafficMap />
         </section>
       )}
 

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { databaseService } from '@/lib/sqlite-database'
+import { getLocationFromIP } from '@/lib/geolocation'
+
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 // Track recent messages to prevent duplicates (within 10 seconds)
 const recentCheckoutMessages = new Map<string, number>()
@@ -64,25 +69,52 @@ async function sendTelegramNotification(ipAddress: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-                     request.headers.get('x-real-ip') || 
-                     'unknown'
+    // Get IP for Telegram notification and tracking
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                      request.headers.get('x-real-ip') || 
+                      request.headers.get('cf-connecting-ip') ||
+                      'unknown'
+    
     const userAgent = request.headers.get('user-agent') || 'unknown'
-    const referer = request.headers.get('referer') || 'unknown'
-
-    databaseService.trackCheckoutVisit({
-      ipAddress,
-      userAgent,
-      referer
+    const referer = request.headers.get('referer') || request.headers.get('referrer') || 'unknown'
+    
+    // Track immediately (increment counter)
+    databaseService.trackCheckoutVisit()
+    
+    // Get geolocation and track detailed info (async, don't wait)
+    getLocationFromIP(ipAddress).then(geo => {
+      // Track with detailed info (async, don't block response)
+      databaseService.trackCheckoutVisitDetailed({
+        ipAddress,
+        countryCode: geo.countryCode,
+        countryName: geo.country,
+        city: geo.city,
+        userAgent,
+        referer
+      })
+    }).catch(err => {
+      console.error('Geolocation error:', err)
+      // Fallback: track without geolocation (but don't increment counter again)
+      databaseService.trackCheckoutVisitDetailed({
+        ipAddress,
+        userAgent,
+        referer
+      })
     })
+    
+    // Send Telegram notification (await so it doesn't get dropped when request completes)
+    try {
+      await sendTelegramNotification(ipAddress)
+    } catch (err) {
+      console.error('❌ Telegram notification error:', err)
+    }
 
-    // Send Telegram notification (async, don't wait)
-    sendTelegramNotification(ipAddress).catch(console.error)
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { status: 200 })
   } catch (error: any) {
-    console.error('Error tracking checkout:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('❌ Error tracking checkout:', error)
+    console.error('Stack:', error.stack)
+    // Still return success to not block the request
+    return NextResponse.json({ success: false, error: error.message }, { status: 200 })
   }
 }
 

